@@ -104,20 +104,16 @@ function renderGameUI() {
       <select id="packPosFilter" class="pos-filter-select">
         <option value="">All</option>
         <optgroup label="Groups">
-          <option value="GRP_GK">Goalkeepers</option>
-          <option value="GRP_DEF">Defenders</option>
-          <option value="GRP_MID">Midfielders</option>
           <option value="GRP_FWD">Forwards</option>
+          <option value="GRP_MID">Midfielders</option>
+          <option value="GRP_DEF">Defenders</option>
+          <option value="GRP_GK">Goalkeepers</option>
         </optgroup>
-        <optgroup label="Goalkeeper">
-          <option value="GK">GK</option>
-        </optgroup>
-        <optgroup label="Defenders">
-          <option value="CB">CB</option>
-          <option value="LB">LB</option>
-          <option value="RB">RB</option>
-          <option value="LWB">LWB</option>
-          <option value="RWB">RWB</option>
+        <optgroup label="Forwards">
+          <option value="LW">LW</option>
+          <option value="RW">RW</option>
+          <option value="CF">CF</option>
+          <option value="ST">ST</option>
         </optgroup>
         <optgroup label="Midfielders">
           <option value="CDM">CDM</option>
@@ -126,11 +122,15 @@ function renderGameUI() {
           <option value="LM">LM</option>
           <option value="RM">RM</option>
         </optgroup>
-        <optgroup label="Forwards">
-          <option value="LW">LW</option>
-          <option value="RW">RW</option>
-          <option value="CF">CF</option>
-          <option value="ST">ST</option>
+        <optgroup label="Defenders">
+          <option value="CB">CB</option>
+          <option value="LB">LB</option>
+          <option value="RB">RB</option>
+          <option value="LWB">LWB</option>
+          <option value="RWB">RWB</option>
+        </optgroup>
+        <optgroup label="Goalkeeper">
+          <option value="GK">GK</option>
         </optgroup>
       </select>
     </div>
