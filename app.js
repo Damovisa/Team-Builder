@@ -462,11 +462,22 @@ document.addEventListener('DOMContentLoaded', () => {
     renderSlotHint();
   });
 
+  // Click on pitch background → deselect slot & clear detail
+  document.getElementById('pitch').addEventListener('click', (e) => {
+    if (!e.target.closest('.pitch-slot')) {
+      selectedSlot = null;
+      showPlayerDetail(null);
+      renderPitch();
+      renderSlotHint();
+    }
+  });
+
   // Clear team (free-build only)
   document.getElementById('clearTeamBtn').addEventListener('click', () => {
     if (!team.some(Boolean) || confirm('Clear all players from the team?')) {
       team.fill(null);
       selectedSlot = null;
+      showPlayerDetail(null);
       afterTeamChange();
     }
   });

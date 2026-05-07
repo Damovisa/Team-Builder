@@ -636,7 +636,7 @@ img { display: block; }
 }
 .pitch-detail-row .pitch-wrapper { flex: 1; min-width: 0; }
 .player-detail {
-  width: 200px;
+  width: 240px;
   flex-shrink: 0;
   overflow-y: auto;
   padding: 12px 10px;
