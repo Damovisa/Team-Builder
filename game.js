@@ -268,7 +268,7 @@ function renderPackCards(players, content, animate = false) {
       filtered.forEach((player, i) => {
         const inTeam = inTeamIds.has(player.id);
         const card = buildPackCard(player, inTeam, i);
-        card.style.animationDelay = `${i * 2000}ms`;
+        card.style.animationDelay = `${i * 1000}ms`;
         card.classList.add('pack-card-animate');
         grid.appendChild(card);
       });
