@@ -10,11 +10,13 @@
 // ────────────────────────────────────────────────────────────────
 const PACK_COUNT = 5;
 const CARDS_PER_PACK = 8;
+const ALL_PACKS_IDX = -1; // sentinel for "All" view
 
 let packs = [];           // Array of 5 arrays, each with up to 8 player objects
 let packOpened = [];       // Boolean array — which packs have been opened
-let currentPackIdx = 0;   // Currently viewed pack index
+let currentPackIdx = 0;   // Currently viewed pack index (or ALL_PACKS_IDX)
 let playerPackMap = {};   // player.id → pack index (for returning players to packs)
+let packPosFilter = '';   // Current position filter for pack view
 
 // ────────────────────────────────────────────────────────────────
 // INIT GAME
@@ -97,8 +99,48 @@ function renderGameUI() {
       <div class="game-status" id="gameStatus"></div>
     </div>
     <div class="pack-selector" id="packSelector"></div>
+    <div class="pack-filter-bar" id="packFilterBar">
+      <label class="pos-filter-label" for="packPosFilter">Position:</label>
+      <select id="packPosFilter" class="pos-filter-select">
+        <option value="">All</option>
+        <optgroup label="Groups">
+          <option value="GRP_GK">Goalkeepers</option>
+          <option value="GRP_DEF">Defenders</option>
+          <option value="GRP_MID">Midfielders</option>
+          <option value="GRP_FWD">Forwards</option>
+        </optgroup>
+        <optgroup label="Goalkeeper">
+          <option value="GK">GK</option>
+        </optgroup>
+        <optgroup label="Defenders">
+          <option value="CB">CB</option>
+          <option value="LB">LB</option>
+          <option value="RB">RB</option>
+          <option value="LWB">LWB</option>
+          <option value="RWB">RWB</option>
+        </optgroup>
+        <optgroup label="Midfielders">
+          <option value="CDM">CDM</option>
+          <option value="CM">CM</option>
+          <option value="CAM">CAM</option>
+          <option value="LM">LM</option>
+          <option value="RM">RM</option>
+        </optgroup>
+        <optgroup label="Forwards">
+          <option value="LW">LW</option>
+          <option value="RW">RW</option>
+          <option value="CF">CF</option>
+          <option value="ST">ST</option>
+        </optgroup>
+      </select>
+    </div>
     <div class="pack-content" id="packContent"></div>
     <div class="pack-nav" id="packNav"></div>`;
+
+  document.getElementById('packPosFilter').addEventListener('change', (e) => {
+    packPosFilter = e.target.value;
+    renderCurrentPack();
+  });
 
   renderPackSelector();
   renderCurrentPack();
@@ -108,6 +150,7 @@ function renderGameUI() {
 function renderPackSelector() {
   const selector = document.getElementById('packSelector');
   selector.innerHTML = '';
+  const allOpened = packOpened.every(Boolean);
 
   for (let i = 0; i < PACK_COUNT; i++) {
     const btn = document.createElement('button');
@@ -120,12 +163,33 @@ function renderPackSelector() {
     });
     selector.appendChild(btn);
   }
+
+  // "All" button — only after all packs are opened
+  if (allOpened) {
+    const allBtn = document.createElement('button');
+    allBtn.className = `pack-btn pack-btn-all${currentPackIdx === ALL_PACKS_IDX ? ' active' : ''}`;
+    allBtn.textContent = '⭐ All';
+    allBtn.addEventListener('click', () => {
+      currentPackIdx = ALL_PACKS_IDX;
+      renderPackSelector();
+      renderCurrentPack();
+    });
+    selector.appendChild(allBtn);
+  }
 }
 
 function renderCurrentPack() {
   const content = document.getElementById('packContent');
   if (!content) return;
   const nav = document.getElementById('packNav');
+
+  // "All" view — show cards from all packs combined
+  if (currentPackIdx === ALL_PACKS_IDX) {
+    const allPlayers = packs.flat();
+    renderPackCards(allPlayers, content);
+    nav.innerHTML = '';
+    return;
+  }
 
   if (!packOpened[currentPackIdx]) {
     // Show "Open Pack" button
@@ -140,30 +204,12 @@ function renderCurrentPack() {
       packOpened[currentPackIdx] = true;
       renderPackSelector();
       renderCurrentPack();
+      renderGameStatus();
     });
     nav.innerHTML = '';
   } else {
-    // Show cards in this pack
     const packPlayers = packs[currentPackIdx];
-    const inTeamIds = new Set(team.filter(Boolean).map(p => p.id));
-    content.innerHTML = '';
-
-    if (packPlayers.length === 0) {
-      content.innerHTML = `
-        <div class="empty-state">
-          <div class="empty-icon">✨</div>
-          <p>All cards from this pack have been used!</p>
-        </div>`;
-    } else {
-      const list = document.createElement('div');
-      list.className = 'pack-card-list';
-      packPlayers.forEach(player => {
-        const inTeam = inTeamIds.has(player.id);
-        const card = buildResultCard(player, inTeam, (p) => gameAddToTeam(p));
-        list.appendChild(card);
-      });
-      content.appendChild(list);
-    }
+    renderPackCards(packPlayers, content);
 
     // Navigation
     nav.innerHTML = '';
@@ -190,6 +236,54 @@ function renderCurrentPack() {
     nav.appendChild(prevBtn);
     nav.appendChild(nextBtn);
   }
+}
+
+// Filter and render a list of players into the pack content area
+function renderPackCards(players, content) {
+  const filtered = filterByPosition(players, packPosFilter);
+  const inTeamIds = new Set(team.filter(Boolean).map(p => p.id));
+  content.innerHTML = '';
+
+  if (filtered.length === 0) {
+    const msg = packPosFilter
+      ? 'No players match this position filter'
+      : 'All cards from this pack have been used!';
+    content.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-icon">✨</div>
+        <p>${msg}</p>
+      </div>`;
+  } else {
+    const list = document.createElement('div');
+    list.className = 'pack-card-list';
+    filtered.forEach(player => {
+      const inTeam = inTeamIds.has(player.id);
+      const card = buildResultCard(player, inTeam, (p) => gameAddToTeam(p));
+      list.appendChild(card);
+    });
+    content.appendChild(list);
+  }
+}
+
+// Position filter logic — supports individual positions and group filters
+function filterByPosition(players, filter) {
+  if (!filter) return players;
+
+  // Group filters (GRP_GK, GRP_DEF, GRP_MID, GRP_FWD)
+  if (filter.startsWith('GRP_')) {
+    const group = filter.slice(4); // 'GK', 'DEF', 'MID', 'FWD'
+    return players.filter(p => {
+      const alts = Array.isArray(p['alternative positions']) ? p['alternative positions'] : [];
+      const allPos = [p.position, ...alts];
+      return allPos.some(pos => posGroup(pos) === group);
+    });
+  }
+
+  // Individual position filter
+  return players.filter(p => {
+    const alts = Array.isArray(p['alternative positions']) ? p['alternative positions'] : [];
+    return p.position === filter || alts.includes(filter);
+  });
 }
 
 function renderGameStatus() {

@@ -833,6 +833,21 @@ img { display: block; }
   color: var(--text-primary);
 }
 
+/* Pack filter bar */
+.pack-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+/* Pack selector — "All" button */
+.pack-btn-all {
+  background: rgba(212,175,55,0.05);
+  border-color: var(--gold-dark);
+}
+
 /* Pack content area */
 .pack-content {
   flex: 1;
