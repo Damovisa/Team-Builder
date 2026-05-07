@@ -236,14 +236,33 @@ function addToTeam(player) {
     return;
   }
 
-  // Auto-assign: prefer a slot matching the player's position group
-  const group = posGroup(player.Position);
+  // Auto-assign priority:
+  //   1. Exact position match (e.g. CM → CM slot)
+  //   2. Player's alternative positions match a slot (e.g. RW alt → RW slot)
+  //   3. Same position group (e.g. CM → any MID slot)
+  //   4. Any empty slot
   const formation = FORMATIONS[currentFormation];
+  const altPositions = Array.isArray(player['Alternative positions']) ? player['Alternative positions'] : [];
+  const group = posGroup(player.Position);
   let target = -1;
 
+  // Pass 1: exact match
   for (let i = 0; i < 11; i++) {
-    if (!team[i] && posGroup(formation[i].pos) === group) { target = i; break; }
+    if (!team[i] && formation[i].pos === player.Position) { target = i; break; }
   }
+  // Pass 2: alternative positions exact match
+  if (target === -1) {
+    for (let i = 0; i < 11; i++) {
+      if (!team[i] && altPositions.includes(formation[i].pos)) { target = i; break; }
+    }
+  }
+  // Pass 3: same group
+  if (target === -1) {
+    for (let i = 0; i < 11; i++) {
+      if (!team[i] && posGroup(formation[i].pos) === group) { target = i; break; }
+    }
+  }
+  // Pass 4: any empty slot
   if (target === -1) {
     for (let i = 0; i < 11; i++) { if (!team[i]) { target = i; break; } }
   }

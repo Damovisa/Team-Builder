@@ -481,9 +481,10 @@ img { display: block; }
   gap: 2px;
   cursor: pointer;
   z-index: 10;
-  transition: transform .18s;
+  transition: transform .18s, z-index 0s;
 }
-.pitch-slot:hover { transform: translate(-50%, -50%) scale(1.08); }
+.pitch-slot:hover { transform: translate(-50%, -50%) scale(1.55); z-index: 50; }
+.pitch-slot.selected { transform: translate(-50%, -50%) scale(1.55); z-index: 50; }
 
 /* Empty slot ring */
 .slot-empty-ring {
