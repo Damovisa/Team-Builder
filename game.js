@@ -17,6 +17,7 @@ let packOpened = [];       // Boolean array — which packs have been opened
 let currentPackIdx = 0;   // Currently viewed pack index (or ALL_PACKS_IDX)
 let playerPackMap = {};   // player.id → pack index (for returning players to packs)
 let packPosFilter = '';   // Current position filter for pack view
+let packTierFilter = '';  // Current tier filter: '', 'gold', 'silver', 'bronze'
 
 // ────────────────────────────────────────────────────────────────
 // INIT GAME
@@ -133,12 +134,24 @@ function renderGameUI() {
           <option value="GK">GK</option>
         </optgroup>
       </select>
+      <label class="pos-filter-label" for="packTierFilter">Tier:</label>
+      <select id="packTierFilter" class="pos-filter-select">
+        <option value="">All</option>
+        <option value="gold">🥇 Gold (75+)</option>
+        <option value="silver">🥈 Silver (65–74)</option>
+        <option value="bronze">🥉 Bronze (&lt;65)</option>
+      </select>
     </div>
     <div class="pack-content" id="packContent"></div>
     <div class="pack-nav" id="packNav"></div>`;
 
   document.getElementById('packPosFilter').addEventListener('change', (e) => {
     packPosFilter = e.target.value;
+    renderCurrentPack();
+  });
+
+  document.getElementById('packTierFilter').addEventListener('change', (e) => {
+    packTierFilter = e.target.value;
     renderCurrentPack();
   });
 
@@ -244,7 +257,8 @@ let packAnimating = false;
 
 // Filter and render a list of players into the pack content area
 function renderPackCards(players, content, animate = false) {
-  const filtered = filterByPosition(players, packPosFilter);
+  const posFiltered = filterByPosition(players, packPosFilter);
+  const filtered = filterByTier(posFiltered, packTierFilter);
   const inTeamIds = new Set(team.filter(Boolean).map(p => p.id));
   content.innerHTML = '';
 
@@ -346,6 +360,18 @@ function filterByPosition(players, filter) {
   return players.filter(p => {
     const alts = Array.isArray(p['alternative positions']) ? p['alternative positions'] : [];
     return p.position === filter || alts.includes(filter);
+  });
+}
+
+// Tier filter: gold (75+), silver (65–74), bronze (<65)
+function filterByTier(players, tier) {
+  if (!tier) return players;
+  return players.filter(p => {
+    const ovr = parseInt(p.ovr) || 0;
+    if (tier === 'gold')   return ovr >= 75;
+    if (tier === 'silver') return ovr >= 65 && ovr <= 74;
+    if (tier === 'bronze') return ovr < 65;
+    return true;
   });
 }
 
