@@ -165,9 +165,6 @@ function renderPitch() {
     slotEl.dataset.idx = idx;
 
     if (isFilled) {
-      const altPos = Array.isArray(player['alternative positions']) && player['alternative positions'].length
-        ? player['alternative positions'].join(', ')
-        : null;
       slotEl.draggable = true;
       slotEl.innerHTML = `
         <div class="slot-card-wrap">
@@ -175,13 +172,6 @@ function renderPitch() {
                onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
           <div class="slot-card-fallback" style="display:none">${esc(player.ovr)}</div>
           <button class="slot-remove-btn" data-idx="${idx}" aria-label="Remove ${esc(player.name)}">✕</button>
-          <div class="slot-tooltip">
-            <div class="tt-name">${esc(player.name)}</div>
-            <div class="tt-row"><span class="tt-label">Club</span> ${esc(player.team)}</div>
-            <div class="tt-row"><span class="tt-label">Nation</span> ${esc(player.nation)}</div>
-            <div class="tt-row"><span class="tt-label">Age</span> ${esc(player.age)}</div>
-            <div class="tt-row"><span class="tt-label">Pos</span> ${esc(player.position)}${altPos ? ` <span class="tt-alt">(${esc(altPos)})</span>` : ''}</div>
-          </div>
         </div>
         <div class="slot-name">${esc(shortName(player.name))}</div>
         <div class="slot-pos-label">${esc(slotDef.pos)}</div>`;
@@ -193,14 +183,17 @@ function renderPitch() {
         <div class="slot-label-empty">Empty</div>`;
     }
 
-    // Click: remove or select
+    // Click: remove, select, or show detail
     slotEl.addEventListener('click', (e) => {
       const removeBtn = e.target.closest('.slot-remove-btn');
       if (removeBtn) {
         e.stopPropagation();
         removeFromTeam(parseInt(removeBtn.dataset.idx));
+        showPlayerDetail(null);
         return;
       }
+      if (isFilled) showPlayerDetail(player);
+      else showPlayerDetail(null);
       toggleSelectSlot(idx);
     });
 
@@ -340,6 +333,60 @@ function renderSlotHint() {
   } else {
     hint.hidden = true;
   }
+}
+
+// ────────────────────────────────────────────────────────────────
+// PLAYER DETAIL PANEL (right of pitch)
+// ────────────────────────────────────────────────────────────────
+function showPlayerDetail(player) {
+  const panel = document.getElementById('playerDetail');
+  if (!panel) return;
+  if (!player) {
+    panel.innerHTML = '<div class="player-detail-empty">Click a player on the pitch to see details</div>';
+    return;
+  }
+  const altPos = Array.isArray(player['alternative positions']) && player['alternative positions'].length
+    ? player['alternative positions'].join(', ')
+    : null;
+  const isGK = player.position === 'GK';
+
+  panel.innerHTML = `
+    <div class="pd-card">
+      <img class="pd-card-img" src="${esc(player.card)}" alt="${esc(player.name)}"
+           onerror="this.style.display='none'">
+    </div>
+    <div class="pd-name">${esc(player.name)}</div>
+    <div class="pd-meta">
+      <div class="pd-row"><span class="pd-label">Club</span> ${esc(player.team)}</div>
+      <div class="pd-row"><span class="pd-label">Nation</span> ${esc(player.nation)}</div>
+      <div class="pd-row"><span class="pd-label">Age</span> ${esc(player.age)}</div>
+      <div class="pd-row"><span class="pd-label">Position</span> ${esc(player.position)}${altPos ? ` <span class="pd-alt">(${esc(altPos)})</span>` : ''}</div>
+      <div class="pd-row"><span class="pd-label">Foot</span> ${esc(player['preferred foot'])} ⭐${esc(player['weak foot'])}</div>
+      <div class="pd-row"><span class="pd-label">Skills</span> ⭐${esc(player['skill moves'])}</div>
+    </div>
+    <div class="pd-stats">
+      ${isGK ? `
+        <div class="pd-stat"><span class="pd-stat-label">DIV</span><span class="pd-stat-val">${esc(player.diving)}</span></div>
+        <div class="pd-stat"><span class="pd-stat-label">HAN</span><span class="pd-stat-val">${esc(player.handling)}</span></div>
+        <div class="pd-stat"><span class="pd-stat-label">KIC</span><span class="pd-stat-val">${esc(player.kicking)}</span></div>
+        <div class="pd-stat"><span class="pd-stat-label">REF</span><span class="pd-stat-val">${esc(player.reflexes)}</span></div>
+        <div class="pd-stat"><span class="pd-stat-label">SPD</span><span class="pd-stat-val">${esc(player.pac)}</span></div>
+        <div class="pd-stat"><span class="pd-stat-label">POS</span><span class="pd-stat-val">${esc(player.def)}</span></div>
+      ` : `
+        <div class="pd-stat"><span class="pd-stat-label">PAC</span><span class="pd-stat-val">${esc(player.pac)}</span></div>
+        <div class="pd-stat"><span class="pd-stat-label">SHO</span><span class="pd-stat-val">${esc(player.sho)}</span></div>
+        <div class="pd-stat"><span class="pd-stat-label">PAS</span><span class="pd-stat-val">${esc(player.pas)}</span></div>
+        <div class="pd-stat"><span class="pd-stat-label">DRI</span><span class="pd-stat-val">${esc(player.dri)}</span></div>
+        <div class="pd-stat"><span class="pd-stat-label">DEF</span><span class="pd-stat-val">${esc(player.def)}</span></div>
+        <div class="pd-stat"><span class="pd-stat-label">PHY</span><span class="pd-stat-val">${esc(player.phy)}</span></div>
+      `}
+    </div>
+    ${player['play style'] && player['play style'].length ? `
+    <div class="pd-playstyles">
+      <span class="pd-label">Play Styles</span>
+      <div class="pd-ps-list">${player['play style'].map(ps => `<span class="pd-ps">${esc(ps)}</span>`).join('')}</div>
+    </div>` : ''}
+  `;
 }
 
 // ────────────────────────────────────────────────────────────────
