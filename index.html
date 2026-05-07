@@ -8,6 +8,29 @@
 </head>
 <body>
 
+  <!-- ===== START SCREEN ===== -->
+  <div class="start-screen" id="startScreen">
+    <div class="start-content">
+      <div class="start-logo">
+        <span class="start-icon">⚽</span>
+        <h1 class="start-title">FC26 Team Builder</h1>
+      </div>
+      <p class="start-subtitle">Build your ultimate squad</p>
+      <div class="start-buttons">
+        <button class="start-btn start-btn-primary" id="btnPlayGame">
+          <span class="start-btn-icon">🎮</span>
+          <span class="start-btn-label">Play a Game</span>
+          <span class="start-btn-desc">Open packs & build your team</span>
+        </button>
+        <button class="start-btn start-btn-secondary" id="btnFreeBuild">
+          <span class="start-btn-icon">🔧</span>
+          <span class="start-btn-label">Free Build</span>
+          <span class="start-btn-desc">Search & add any player</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
   <!-- ===== HEADER ===== -->
   <header class="app-header">
     <div class="header-logo">
@@ -17,10 +40,10 @@
   </header>
 
   <!-- ===== MAIN LAYOUT ===== -->
-  <main class="app-main">
+  <main class="app-main hidden" id="appMain">
 
-    <!-- ── Search Panel ── -->
-    <aside class="search-panel">
+    <!-- ── Search Panel (free-build mode) ── -->
+    <aside class="search-panel hidden" id="searchPanel">
       <div class="panel-header">
         <h2>Find Players</h2>
         <div class="search-type-toggle">
@@ -73,8 +96,9 @@
       </div>
 
       <div class="search-status" id="searchStatus"></div>
+      <div id="slotHintAnchor"></div>
 
-      <!-- Position filter — shown when results are present -->
+      <!-- Position filter -->
       <div class="pos-filter-bar hidden" id="posFilterBar">
         <label class="pos-filter-label" for="posFilter">Position:</label>
         <select id="posFilter" class="pos-filter-select">
@@ -105,14 +129,17 @@
         </select>
       </div>
 
-      <!-- Slot-selection hint injected here by JS -->
-
       <div class="search-results" id="searchResults">
         <div class="empty-state">
           <div class="empty-icon">🔍</div>
           <p>Search for players to add to your team</p>
         </div>
       </div>
+    </aside>
+
+    <!-- ── Game Panel (game mode) ── -->
+    <aside class="game-panel hidden" id="gamePanel">
+      <div id="slotHintAnchorGame"></div>
     </aside>
 
     <!-- ── Team / Pitch Panel ── -->
@@ -193,5 +220,7 @@
   </main>
 
   <script src="app.js"></script>
+  <script src="free-build.js"></script>
+  <script src="game.js"></script>
 </body>
 </html>

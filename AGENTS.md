@@ -8,11 +8,13 @@ Skip to the relevant section rather than re-discovering these from scratch.
 ## Project structure
 
 ```
-index.html   — app shell: all HTML, layout, search panes, pitch container, stats bar
-style.css    — all styles (no preprocessor, plain CSS with custom properties)
-app.js       — all application logic (no build step, no framework, vanilla ES2020)
-README.md    — user-facing setup and usage docs
-AGENTS.md    — this file
+index.html      — app shell: start screen, search panel, game panel, pitch, stats bar
+style.css       — all styles (no preprocessor, plain CSS with custom properties)
+app.js          — shared core: API, formations, team state, pitch rendering, mode selection
+free-build.js   — search panel logic for unrestricted team building mode
+game.js         — pack-opening game mode logic
+README.md       — user-facing setup and usage docs
+AGENTS.md       — this file
 ```
 
 No `package.json`, no build step, no `node_modules`. Open `index.html` directly in a browser
@@ -84,17 +86,41 @@ String filters are partial matches: `name=salah` matches all Salahs.
 
 ---
 
-## App architecture (app.js)
+## App architecture
 
-### Key globals
+### JS File Split
+
+| File | Purpose |
+|---|---|
+| `app.js` | Shared core: API, formations, team state, pitch rendering, mode selection |
+| `free-build.js` | Search panel: name/team/rank search, position filter, result rendering |
+| `game.js` | Pack-opening game: fetches random players, pack UI, swap mechanics |
+
+### Key globals (app.js)
 
 | Variable | Purpose |
 |---|---|
 | `team` | `Array(11)` — each element is a player object or `null` |
 | `currentFormation` | String key into `FORMATIONS` (e.g. `'4-3-3'`) |
 | `selectedSlot` | Index (0–10) of the currently selected pitch slot, or `null` |
-| `allResults` | Full unfiltered array from the last search — used by position filter |
+| `gameMode` | `'free'` or `'game'` — set by start screen selection |
 | `dragSourceIdx` | Index of the slot being dragged, or `null` |
+
+### Key globals (free-build.js)
+
+| Variable | Purpose |
+|---|---|
+| `allResults` | Full unfiltered array from the last search — used by position filter |
+| `searchType` | Current search tab (`'name'`, `'team'`, or `'rank'`) |
+
+### Key globals (game.js)
+
+| Variable | Purpose |
+|---|---|
+| `packs` | Array of 5 arrays, each containing player objects (cards in that pack) |
+| `packOpened` | Boolean array tracking which packs have been opened |
+| `currentPackIdx` | Index (0–4) of the currently viewed pack |
+| `playerPackMap` | Maps player.id → pack index for returning players to packs |
 
 ### Key functions
 

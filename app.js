@@ -1,5 +1,5 @@
 /* ================================================================
-   FC26 Team Builder – app.js
+   FC26 Team Builder – app.js (shared core)
    API: https://api.msmc.cc/api/eafc  (no auth required)
    ================================================================ */
 
@@ -18,16 +18,15 @@ async function apiFetch(path) {
   return data;
 }
 
-// Returns array of matching players
 const fetchByName      = (name) => apiFetch(`/players?name=${encodeURIComponent(name)}&game=fc26`);
 const fetchByTeam      = (team) => apiFetch(`/players?team=${encodeURIComponent(team)}&game=fc26`);
-// Single call for a rank range — uses < / > operators in the query string
 const fetchByRankRange = (from, to) => {
   let qs = `game=fc26`;
   if (from > 1) qs += `&rank%3E${from - 1}`;
   qs += `&rank%3C${to + 1}`;
   return apiFetch(`/players?${qs}`);
 };
+const fetchRandomPlayer = () => apiFetch(`/random?game=fc26`);
 
 // ────────────────────────────────────────────────────────────────
 // FORMATIONS  –  x/y as % of pitch (0,0 = top-left, attack at top)
@@ -75,12 +74,10 @@ const FORMATIONS = {
 // ────────────────────────────────────────────────────────────────
 // TEAM STATE
 // ────────────────────────────────────────────────────────────────
-const team = new Array(11).fill(null);   // each slot: null or player object
+const team = new Array(11).fill(null);
 let currentFormation = '4-3-3';
 let selectedSlot     = null;
-let searchType       = 'name';
-let isSearching      = false;
-let allResults       = [];   // full unfiltered result set from last search
+let gameMode         = null; // 'free' or 'game'
 
 // ────────────────────────────────────────────────────────────────
 // HELPERS
@@ -105,10 +102,9 @@ const POS_GROUP = {
 function posGroup(pos) { return POS_GROUP[pos] || 'MID'; }
 
 // ────────────────────────────────────────────────────────────────
-// RENDER: SEARCH RESULT CARD
-// Each card shows the real EA FC26 card image + supplementary info
+// RENDER: RESULT CARD (shared between free-build and game)
 // ────────────────────────────────────────────────────────────────
-function buildResultCard(player, inTeam = false) {
+function buildResultCard(player, inTeam = false, onClick = null) {
   const card = document.createElement('div');
   card.className = `result-card${inTeam ? ' in-team' : ''}`;
   card.dataset.playerId = player.id;
@@ -137,7 +133,11 @@ function buildResultCard(player, inTeam = false) {
   card._player = player;
 
   if (!inTeam) {
-    const addFn = (e) => { e.stopPropagation(); addToTeam(card._player); };
+    const addFn = (e) => {
+      e.stopPropagation();
+      if (onClick) onClick(player);
+      else addToTeam(player);
+    };
     card.querySelector('.rc-add-btn').addEventListener('click', addFn);
     card.addEventListener('click', addFn);
   }
@@ -204,7 +204,6 @@ function renderPitch() {
     slotEl.addEventListener('dragend', () => {
       slotEl.classList.remove('dragging');
       dragSourceIdx = null;
-      // Clear any lingering drag-over highlights
       container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
     });
 
@@ -221,7 +220,6 @@ function renderPitch() {
       e.preventDefault();
       slotEl.classList.remove('drag-over');
       if (dragSourceIdx === null || dragSourceIdx === idx) return;
-      // Swap the two slots
       const tmp = team[dragSourceIdx];
       team[dragSourceIdx] = team[idx];
       team[idx] = tmp;
@@ -238,40 +236,36 @@ function renderPitch() {
 // ────────────────────────────────────────────────────────────────
 function addToTeam(player) {
   if (selectedSlot !== null) {
+    const displaced = team[selectedSlot];
     team[selectedSlot] = player;
     showToast(`${player.name} → ${FORMATIONS[currentFormation][selectedSlot].pos}`);
     selectedSlot = null;
     afterTeamChange();
+    // In game mode, return displaced player to their pack
+    if (gameMode === 'game' && displaced) {
+      returnToPack(displaced);
+    }
     return;
   }
 
-  // Auto-assign priority:
-  //   1. Exact position match (e.g. CM → CM slot)
-  //   2. Player's alternative positions match a slot (e.g. RW alt → RW slot)
-  //   3. Same position group (e.g. CM → any MID slot)
-  //   4. Any empty slot
   const formation = FORMATIONS[currentFormation];
   const altPositions = Array.isArray(player['alternative positions']) ? player['alternative positions'] : [];
   const group = posGroup(player.position);
   let target = -1;
 
-  // Pass 1: exact match
   for (let i = 0; i < 11; i++) {
     if (!team[i] && formation[i].pos === player.position) { target = i; break; }
   }
-  // Pass 2: alternative positions exact match
   if (target === -1) {
     for (let i = 0; i < 11; i++) {
       if (!team[i] && altPositions.includes(formation[i].pos)) { target = i; break; }
     }
   }
-  // Pass 3: same group
   if (target === -1) {
     for (let i = 0; i < 11; i++) {
       if (!team[i] && posGroup(formation[i].pos) === group) { target = i; break; }
     }
   }
-  // Pass 4: any empty slot
   if (target === -1) {
     for (let i = 0; i < 11; i++) { if (!team[i]) { target = i; break; } }
   }
@@ -284,11 +278,19 @@ function addToTeam(player) {
 
 function removeFromTeam(idx) {
   if (team[idx]) {
-    showToast(`${team[idx].name} removed`);
+    const player = team[idx];
+    showToast(`${player.name} removed`);
     team[idx] = null;
+    // In game mode, return to pack
+    if (gameMode === 'game') {
+      returnToPack(player);
+    }
     afterTeamChange();
   }
 }
+
+// Hook for game.js — overridden when game mode starts
+let returnToPack = () => {};
 
 function toggleSelectSlot(idx) {
   selectedSlot = (selectedSlot === idx) ? null : idx;
@@ -299,20 +301,27 @@ function toggleSelectSlot(idx) {
 function afterTeamChange() {
   renderPitch();
   updateTeamStats();
-  refreshCardStates();
+  if (typeof refreshCardStates === 'function') refreshCardStates();
   renderSlotHint();
+  // Notify game mode of team changes
+  if (gameMode === 'game' && typeof onGameTeamChange === 'function') onGameTeamChange();
 }
+
+// Hook for game.js
+let onGameTeamChange = null;
 
 // ────────────────────────────────────────────────────────────────
 // SLOT HINT
 // ────────────────────────────────────────────────────────────────
 function renderSlotHint() {
+  const anchor = document.getElementById('slotHintAnchor') || document.getElementById('slotHintAnchorGame');
+  if (!anchor) return;
   let hint = document.getElementById('slotHint');
   if (!hint) {
     hint = document.createElement('div');
     hint.id = 'slotHint';
     hint.className = 'slot-hint';
-    document.getElementById('searchStatus').after(hint);
+    anchor.after(hint);
   }
   if (selectedSlot !== null) {
     const pos = FORMATIONS[currentFormation][selectedSlot].pos;
@@ -345,140 +354,8 @@ function updateTeamStats() {
 }
 
 // ────────────────────────────────────────────────────────────────
-// REFRESH IN-TEAM BADGES ON RESULT CARDS
-// ────────────────────────────────────────────────────────────────
-function refreshCardStates() {
-  // Re-render results from stored allResults so in-team badges are always accurate
-  if (allResults.length) applyPosFilter();
-}
-
-// ────────────────────────────────────────────────────────────────
-// SEARCH HANDLERS
-// ────────────────────────────────────────────────────────────────
-async function doNameSearch() {
-  const name = document.getElementById('searchInput').value.trim();
-  if (!name) { setStatus('⚠️ Enter a player name'); return; }
-  if (isSearching) return;
-  isSearching = true;
-
-  showLoading();
-  try {
-    const players = await fetchByName(name);
-    if (!Array.isArray(players) || !players.length) throw new Error('No players found');
-    renderPlayerList(players);
-  } catch (err) {
-    showError(err.message);
-  } finally {
-    isSearching = false;
-  }
-}
-
-async function doTeamSearch() {
-  const teamName = document.getElementById('teamInput').value.trim();
-  if (!teamName) { setStatus('⚠️ Enter a team name'); return; }
-  if (isSearching) return;
-  isSearching = true;
-
-  showLoading();
-  try {
-    const players = await fetchByTeam(teamName);
-    if (!Array.isArray(players) || !players.length) throw new Error('No players found for that team');
-    renderPlayerList(players);
-  } catch (err) {
-    showError(err.message);
-  } finally {
-    isSearching = false;
-  }
-}
-
-async function doRankSearch() {
-  const from = Math.max(1,   parseInt(document.getElementById('rankFrom').value) || 1);
-  const to   = Math.min(500, parseInt(document.getElementById('rankTo').value)   || 20);
-  if (from > to) { setStatus('⚠️ "From" rank must be ≤ "To" rank'); return; }
-  if (isSearching) return;
-  isSearching = true;
-
-  const count = to - from + 1;
-  showLoading(`Loading ${count} player${count !== 1 ? 's' : ''}…`);
-  try {
-    const players = await fetchByRankRange(from, to);
-    if (!Array.isArray(players) || !players.length) throw new Error('No players found in that rank range');
-    // Sort by rank ascending
-    players.sort((a, b) => parseInt(a.rank) - parseInt(b.rank));
-    renderPlayerList(players);
-  } catch (err) {
-    showError(err.message);
-  } finally {
-    isSearching = false;
-  }
-}
-
-// ────────────────────────────────────────────────────────────────
-// RENDER RESULTS
-// ────────────────────────────────────────────────────────────────
-function renderSinglePlayer(player) {
-  allResults = [player];
-  applyPosFilter();
-}
-
-function renderPlayerList(players) {
-  allResults = players;
-  applyPosFilter();
-}
-
-// Filter allResults by the selected position (main or alternative) and render
-function applyPosFilter() {
-  const pos = document.getElementById('posFilter').value;
-  const filtered = pos
-    ? allResults.filter(p => {
-        const alts = Array.isArray(p['alternative positions']) ? p['alternative positions'] : [];
-        return p.position === pos || alts.includes(pos);
-      })
-    : allResults;
-
-  const resultsEl = document.getElementById('searchResults');
-  const inTeamIds = new Set(team.filter(Boolean).map(p => p.id));
-  resultsEl.innerHTML = '';
-
-  if (!filtered.length) {
-    resultsEl.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><p>No ${pos} players in these results</p></div>`;
-  } else {
-    filtered.forEach(p => resultsEl.appendChild(buildResultCard(p, inTeamIds.has(p.id))));
-  }
-
-  const total = allResults.length;
-  const shown = filtered.length;
-  setStatus(pos
-    ? `${shown} of ${total} player${total !== 1 ? 's' : ''} · filtered by ${pos}`
-    : `${total} player${total !== 1 ? 's' : ''} found`
-  );
-
-  // Show filter bar whenever there are results
-  document.getElementById('posFilterBar').classList.toggle('hidden', total === 0);
-}
-
-// ────────────────────────────────────────────────────────────────
 // UI HELPERS
 // ────────────────────────────────────────────────────────────────
-function showLoading(msg = 'Searching…') {
-  allResults = [];
-  document.getElementById('posFilterBar').classList.add('hidden');
-  document.getElementById('posFilter').value = '';
-  document.getElementById('searchResults').innerHTML =
-    `<div class="empty-state"><div class="spinner"></div><p>${msg}</p></div>`;
-  setStatus('');
-}
-
-function showError(msg) {
-  document.getElementById('searchResults').innerHTML =
-    `<div class="empty-state"><div class="empty-icon">⚠️</div><p style="color:#e06060">${esc(msg)}</p></div>`;
-  setStatus('');
-}
-
-function setStatus(msg) {
-  document.getElementById('searchStatus').textContent = msg;
-}
-
 function showToast(message, type = 'success') {
   document.querySelector('.toast')?.remove();
   const t = document.createElement('div');
@@ -489,36 +366,36 @@ function showToast(message, type = 'success') {
 }
 
 // ────────────────────────────────────────────────────────────────
+// START SCREEN & MODE SELECTION
+// ────────────────────────────────────────────────────────────────
+function startMode(mode) {
+  gameMode = mode;
+  document.getElementById('startScreen').classList.add('hidden');
+  document.getElementById('appMain').classList.remove('hidden');
+
+  if (mode === 'free') {
+    document.getElementById('searchPanel').classList.remove('hidden');
+    document.getElementById('gamePanel').classList.add('hidden');
+    document.getElementById('clearTeamBtn').classList.remove('hidden');
+    initFreeBuild();
+  } else {
+    document.getElementById('searchPanel').classList.add('hidden');
+    document.getElementById('gamePanel').classList.remove('hidden');
+    document.getElementById('clearTeamBtn').classList.add('hidden');
+    initGame();
+  }
+}
+
+// ────────────────────────────────────────────────────────────────
 // INIT
 // ────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   renderPitch();
   updateTeamStats();
 
-  // Tab switching
-  document.querySelectorAll('.tab-btn').forEach(btn => {
-    btn.addEventListener('click', () => {
-      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-      btn.classList.add('active');
-      searchType = btn.dataset.type;
-
-      document.getElementById('paneByName').classList.toggle('hidden', searchType !== 'name');
-      document.getElementById('paneByTeam').classList.toggle('hidden', searchType !== 'team');
-      document.getElementById('paneByRank').classList.toggle('hidden', searchType !== 'rank');
-    });
-  });
-
-  // Search triggers
-  document.getElementById('searchBtn').addEventListener('click', doNameSearch);
-  document.getElementById('searchInput').addEventListener('keydown', e => e.key === 'Enter' && doNameSearch());
-
-  document.getElementById('teamSearchBtn').addEventListener('click', doTeamSearch);
-  document.getElementById('teamInput').addEventListener('keydown', e => e.key === 'Enter' && doTeamSearch());
-
-  document.getElementById('rankSearchBtn').addEventListener('click', doRankSearch);
-
-  // Position filter
-  document.getElementById('posFilter').addEventListener('change', applyPosFilter);
+  // Start screen buttons
+  document.getElementById('btnPlayGame').addEventListener('click', () => startMode('game'));
+  document.getElementById('btnFreeBuild').addEventListener('click', () => startMode('free'));
 
   // Formation
   document.getElementById('formationSelect').addEventListener('change', e => {
@@ -528,7 +405,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderSlotHint();
   });
 
-  // Clear team
+  // Clear team (free-build only)
   document.getElementById('clearTeamBtn').addEventListener('click', () => {
     if (!team.some(Boolean) || confirm('Clear all players from the team?')) {
       team.fill(null);
