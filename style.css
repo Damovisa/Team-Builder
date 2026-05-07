@@ -951,12 +951,12 @@ img { display: block; }
   z-index: 2;
 }
 
-/* Hover tooltip */
+/* Hover tooltip — positioned to the right */
 .pack-card-tooltip {
   position: absolute;
-  bottom: calc(100% + 6px);
-  left: 50%;
-  transform: translateX(-50%);
+  top: 50%;
+  left: calc(100% + 8px);
+  transform: translateY(-50%);
   background: var(--bg-panel);
   border: 1px solid var(--gold);
   border-radius: 6px;
@@ -973,6 +973,21 @@ img { display: block; }
 }
 .pack-card:hover .pack-card-tooltip {
   opacity: 1;
+}
+
+/* Grey out siblings when hovering a card */
+.pack-card-grid:hover .pack-card {
+  opacity: 0.4;
+  transition: opacity .18s, transform .18s;
+}
+.pack-card-grid:hover .pack-card:hover {
+  opacity: 1;
+}
+.pack-card-grid:hover .pack-card-in-team {
+  opacity: 0.3;
+}
+.pack-card-grid:hover .pack-card-in-team:hover {
+  opacity: 0.5;
 }
 
 /* Pack open animation */

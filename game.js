@@ -257,20 +257,43 @@ function renderPackCards(players, content, animate = false) {
         <div class="empty-icon">✨</div>
         <p>${msg}</p>
       </div>`;
+  } else if (animate) {
+    // Preload all images, then animate reveal
+    content.innerHTML = `<div class="empty-state"><div class="spinner"></div><p>Revealing cards…</p></div>`;
+    const imageUrls = filtered.map(p => p.card).filter(Boolean);
+    preloadImages(imageUrls).then(() => {
+      content.innerHTML = '';
+      const grid = document.createElement('div');
+      grid.className = 'pack-card-grid';
+      filtered.forEach((player, i) => {
+        const inTeam = inTeamIds.has(player.id);
+        const card = buildPackCard(player, inTeam);
+        card.style.animationDelay = `${i * 150}ms`;
+        card.classList.add('pack-card-animate');
+        grid.appendChild(card);
+      });
+      content.appendChild(grid);
+    });
   } else {
     const grid = document.createElement('div');
     grid.className = 'pack-card-grid';
     filtered.forEach((player, i) => {
       const inTeam = inTeamIds.has(player.id);
       const card = buildPackCard(player, inTeam);
-      if (animate) {
-        card.style.animationDelay = `${i * 150}ms`;
-        card.classList.add('pack-card-animate');
-      }
       grid.appendChild(card);
     });
     content.appendChild(grid);
   }
+}
+
+// Preload an array of image URLs, resolves when all are loaded (or failed)
+function preloadImages(urls) {
+  return Promise.all(urls.map(url => new Promise(resolve => {
+    const img = new Image();
+    img.onload = resolve;
+    img.onerror = resolve;
+    img.src = url;
+  })));
 }
 
 // Build a compact card for the pack view — image only with hover tooltip
