@@ -25,20 +25,26 @@ async function initGame() {
     <div class="game-loading">
       <div class="spinner"></div>
       <p>Fetching your packs…</p>
+      <div class="pack-progress">
+        <div class="pack-progress-bar"><div class="pack-progress-fill" id="packProgressFill"></div></div>
+        <span class="pack-progress-text" id="packProgressText">0 / ${PACK_COUNT * CARDS_PER_PACK} cards</span>
+      </div>
     </div>`;
 
   try {
-    // Fetch 40 random players (one at a time from /random endpoint)
     const allPlayers = [];
-    const fetches = [];
-    for (let i = 0; i < PACK_COUNT * CARDS_PER_PACK; i++) {
-      fetches.push(fetchRandomPlayer());
-    }
-    const results = await Promise.all(fetches);
-    for (const result of results) {
-      // /random returns a single player object (or array with one)
+    const total = PACK_COUNT * CARDS_PER_PACK;
+    const progressFill = document.getElementById('packProgressFill');
+    const progressText = document.getElementById('packProgressText');
+
+    // Fetch in small batches to show progress without overwhelming the API
+    for (let i = 0; i < total; i++) {
+      const result = await fetchRandomPlayer();
       const player = Array.isArray(result) ? result[0] : result;
       if (player) allPlayers.push(player);
+      const count = allPlayers.length;
+      progressFill.style.width = `${(count / total) * 100}%`;
+      progressText.textContent = `${count} / ${total} cards`;
     }
 
     // Split into packs
