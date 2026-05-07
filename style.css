@@ -970,6 +970,32 @@ img { display: block; }
   box-shadow: var(--shadow);
   line-height: 1.5;
 }
+.tt-name {
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: var(--gold-light);
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+}
+.tt-row {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  font-size: 0.7rem;
+  line-height: 1.7;
+}
+.tt-label {
+  color: var(--text-muted);
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: .3px;
+  min-width: 36px;
+}
+.tt-alt {
+  color: var(--text-secondary);
+  font-size: 0.65rem;
+}
 /* Left column cards: tooltip to the right */
 .pack-card.tooltip-right .pack-card-tooltip {
   left: calc(100% + 8px);

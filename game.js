@@ -304,15 +304,21 @@ function buildPackCard(player, inTeam, colIdx = 0) {
   card.className = `pack-card ${tooltipSide}${inTeam ? ' pack-card-in-team' : ''}`;
   card.dataset.playerId = player.id;
 
+  const altPos = Array.isArray(player['alternative positions']) && player['alternative positions'].length
+    ? player['alternative positions'].join(', ')
+    : null;
+
   card.innerHTML = `
     ${inTeam ? '<div class="pack-card-badge">✓</div>' : ''}
     <img class="pack-card-img" src="${esc(player.card)}" alt="${esc(player.name)}"
          onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
     <div class="pack-card-fallback" style="display:none">${esc(player.ovr)}</div>
     <div class="pack-card-tooltip">
-      <strong>${esc(player.name)}</strong><br>
-      ${esc(player.team)} · ${esc(player.nation)}<br>
-      Age ${esc(player.age)} · ${esc(player.position)}
+      <div class="tt-name">${esc(player.name)}</div>
+      <div class="tt-row"><span class="tt-label">Club</span> ${esc(player.team)}</div>
+      <div class="tt-row"><span class="tt-label">Nation</span> ${esc(player.nation)}</div>
+      <div class="tt-row"><span class="tt-label">Age</span> ${esc(player.age)}</div>
+      <div class="tt-row"><span class="tt-label">Pos</span> ${esc(player.position)}${altPos ? ` <span class="tt-alt">(${esc(altPos)})</span>` : ''}</div>
     </div>`;
 
   if (!inTeam) {
