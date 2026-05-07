@@ -257,6 +257,20 @@ img { display: block; }
   font-size: 0.78rem;
   width: 86px;
 }
+.league-select {
+  width: 100%;
+  background: rgba(255,255,255,0.055);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+}
+.league-note {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  padding: 0 2px;
+}
 .search-btn { width: 100%; }
 
 .search-status {

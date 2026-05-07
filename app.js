@@ -196,8 +196,8 @@ async function apiFetch(path) {
   return res.json();
 }
 
-const searchPlayers = (query, season) =>
-  apiFetch(`/players?search=${encodeURIComponent(query)}&season=${season}`);
+const searchPlayers = (query, league, season) =>
+  apiFetch(`/players?search=${encodeURIComponent(query)}&league=${league}&season=${season}`);
 
 const searchTeams = (query) =>
   apiFetch(`/teams?search=${encodeURIComponent(query)}`);
@@ -473,6 +473,7 @@ function refreshCardStates() {
 async function doSearch() {
   const query  = document.getElementById('searchInput').value.trim();
   const season = document.getElementById('seasonSelect').value;
+  const league = document.getElementById('leagueSelect').value;
 
   if (!apiKey) {
     document.getElementById('apiKeyModal').hidden = false;
@@ -493,7 +494,7 @@ async function doSearch() {
 
   try {
     if (searchType === 'name') {
-      const data = await searchPlayers(query, season);
+      const data = await searchPlayers(query, league, season);
       renderPlayerResults(data);
     } else {
       const data = await searchTeams(query);
@@ -627,8 +628,12 @@ document.addEventListener('DOMContentLoaded', () => {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       searchType = btn.dataset.type;
+      const isByName = searchType === 'name';
       document.getElementById('searchInput').placeholder =
-        searchType === 'name' ? 'Search players (min 3 chars)…' : 'Search teams…';
+        isByName ? 'Search players (min 3 chars)…' : 'Search teams…';
+      // League selector is only relevant for name searches (team search uses /players?team=id)
+      document.getElementById('leagueSelect').style.display = isByName ? '' : 'none';
+      document.getElementById('leagueNote').style.display   = isByName ? '' : 'none';
     });
   });
 

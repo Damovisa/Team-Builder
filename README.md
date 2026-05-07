@@ -71,7 +71,7 @@ xdg-open index.html      # Linux
 
 | Action | How |
 |--------|-----|
-| Search by player name | Select **By Name** tab → type ≥ 3 characters → press Enter or click Search |
+| Search by player name | Select **By Name** tab → choose a league → type ≥ 3 characters → press Enter or click Search |
 | Search by team roster | Select **By Team** tab → type a team name → click the team in results |
 | Add player to squad | Click any player card (auto-assigns to the best empty slot) |
 | Assign to a specific slot | Click a position slot on the pitch first (it highlights), then click a player card |
@@ -127,7 +127,8 @@ Card rarity follows overall rating: **Bronze** < 65 · **Silver** 65–74 · **G
 
 | Problem | Solution |
 |---------|---------|
-| "No players found" | Try a different season year, or a longer/different search term |
+| "No players found" | Make sure you've selected the **correct league** for the player — the API free tier **requires a league** for name searches |
+| Player not in listed league | Use **By Team** search instead: find their club, then browse its full roster |
 | "Invalid API key" | Check your key in `config.js` or via the 🔑 button; make sure you subscribed on RapidAPI |
 | "Rate limit hit" | Free tier = 100 req/day. Wait until tomorrow or upgrade your plan |
 | Images not loading | Player photos come from `media.api-sports.io` — a fallback silhouette is shown if unavailable |

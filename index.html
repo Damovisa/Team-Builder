@@ -69,6 +69,22 @@
             <option value="2021">2021/22</option>
           </select>
         </div>
+        <!-- League selector: required by API-Football free tier for name searches -->
+        <select id="leagueSelect" class="league-select" title="League (required for player name search)">
+          <option value="39">🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League</option>
+          <option value="140">🇪🇸 La Liga</option>
+          <option value="135">🇮🇹 Serie A</option>
+          <option value="78">🇩🇪 Bundesliga</option>
+          <option value="61">🇫🇷 Ligue 1</option>
+          <option value="2">🏆 Champions League</option>
+          <option value="3">🥈 Europa League</option>
+          <option value="253">🇺🇸 MLS</option>
+          <option value="307">🇸🇦 Saudi Pro League</option>
+          <option value="88">🇳🇱 Eredivisie</option>
+          <option value="94">🇵🇹 Primeira Liga</option>
+          <option value="203">🇹🇷 Süper Lig</option>
+        </select>
+        <div class="league-note" id="leagueNote">ℹ️ Free tier requires a league for name searches</div>
         <button id="searchBtn" class="btn-primary search-btn">🔍 Search</button>
       </div>
 
