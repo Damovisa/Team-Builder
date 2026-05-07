@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>⚽ FUT Team Builder</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ===== HEADER ===== -->
+  <header class="app-header">
+    <div class="header-logo">
+      <span class="logo-icon">⚽</span>
+      <span class="logo-text">FUT Team Builder</span>
+    </div>
+    <div class="header-actions">
+      <button class="btn-ghost" id="apiKeyBtn">🔑 API Key</button>
+    </div>
+  </header>
+
+  <!-- ===== API KEY MODAL ===== -->
+  <div class="modal-overlay" id="apiKeyModal" hidden>
+    <div class="modal">
+      <h3>Set RapidAPI Key</h3>
+      <p>Enter your RapidAPI key for <strong>API-Football</strong>, or edit <code>config.js</code>. Keys are stored in your browser only.</p>
+      <input type="text" id="apiKeyInput" placeholder="e.g. a1b2c3d4e5f6..." autocomplete="off" />
+      <div class="modal-actions">
+        <button class="btn-primary" id="saveApiKeyBtn">Save Key</button>
+        <button class="btn-ghost" id="closeModalBtn">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== NO-KEY BANNER ===== -->
+  <div class="api-banner" id="apiBanner">
+    ⚠️ No API key set.
+    <button id="setBannerKeyBtn">Click here to add your RapidAPI key</button>
+    or edit <code>config.js</code>.
+    See <a href="README.md" target="_blank">README</a> for instructions.
+  </div>
+
+  <!-- ===== MAIN LAYOUT ===== -->
+  <main class="app-main">
+
+    <!-- ── Search Panel ── -->
+    <aside class="search-panel">
+      <div class="panel-header">
+        <h2>Find Players</h2>
+        <div class="search-type-toggle">
+          <button class="tab-btn active" data-type="name">By Name</button>
+          <button class="tab-btn" data-type="team">By Team</button>
+        </div>
+      </div>
+
+      <div class="search-bar-container">
+        <div class="search-row">
+          <input
+            type="text"
+            id="searchInput"
+            class="search-input"
+            placeholder="Search players (min 3 chars)…"
+            maxlength="60"
+          />
+          <select id="seasonSelect" class="season-select">
+            <option value="2024">2024/25</option>
+            <option value="2023" selected>2023/24</option>
+            <option value="2022">2022/23</option>
+            <option value="2021">2021/22</option>
+          </select>
+        </div>
+        <button id="searchBtn" class="btn-primary search-btn">🔍 Search</button>
+      </div>
+
+      <div class="search-status" id="searchStatus"></div>
+
+      <!-- Slot-selection hint injected here by JS -->
+
+      <div class="search-results" id="searchResults">
+        <div class="empty-state">
+          <div class="empty-icon">🔍</div>
+          <p>Search for players to add to your team</p>
+        </div>
+      </div>
+    </aside>
+
+    <!-- ── Team / Pitch Panel ── -->
+    <section class="team-panel">
+      <div class="team-header">
+        <h2>My Team</h2>
+        <div class="team-controls">
+          <label for="formationSelect">Formation:</label>
+          <select id="formationSelect" class="formation-select">
+            <option value="4-3-3">4-3-3</option>
+            <option value="4-4-2">4-4-2</option>
+            <option value="3-5-2">3-5-2</option>
+            <option value="4-2-3-1">4-2-3-1</option>
+            <option value="5-3-2">5-3-2</option>
+          </select>
+          <button id="clearTeamBtn" class="btn-danger">Clear</button>
+        </div>
+      </div>
+
+      <div class="pitch-wrapper">
+        <div class="pitch" id="pitch">
+          <!-- Pitch markings -->
+          <div class="pitch-markings" aria-hidden="true">
+            <div class="halfway-line"></div>
+            <div class="center-circle"></div>
+            <div class="center-dot"></div>
+            <div class="penalty-area penalty-top"></div>
+            <div class="penalty-area penalty-bottom"></div>
+            <div class="goal-area goal-top"></div>
+            <div class="goal-area goal-bottom"></div>
+            <div class="corner corner-tl"></div>
+            <div class="corner corner-tr"></div>
+            <div class="corner corner-bl"></div>
+            <div class="corner corner-br"></div>
+          </div>
+          <!-- Player slots rendered by JS -->
+          <div class="slots-container" id="slotsContainer"></div>
+        </div>
+      </div>
+
+      <!-- Team stats bar -->
+      <div class="team-stats-bar">
+        <div class="team-stat">
+          <span class="tstat-label">Players</span>
+          <span class="tstat-value" id="statPlayers">0/11</span>
+        </div>
+        <div class="team-stat">
+          <span class="tstat-label">OVR</span>
+          <span class="tstat-value" id="statRating">—</span>
+        </div>
+        <div class="team-stat">
+          <span class="tstat-label">PAC</span>
+          <span class="tstat-value" id="statPace">—</span>
+        </div>
+        <div class="team-stat">
+          <span class="tstat-label">SHO</span>
+          <span class="tstat-value" id="statShooting">—</span>
+        </div>
+        <div class="team-stat">
+          <span class="tstat-label">PAS</span>
+          <span class="tstat-value" id="statPassing">—</span>
+        </div>
+        <div class="team-stat">
+          <span class="tstat-label">DRI</span>
+          <span class="tstat-value" id="statDribbling">—</span>
+        </div>
+        <div class="team-stat">
+          <span class="tstat-label">DEF</span>
+          <span class="tstat-value" id="statDefending">—</span>
+        </div>
+        <div class="team-stat">
+          <span class="tstat-label">PHY</span>
+          <span class="tstat-value" id="statPhysicality">—</span>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
