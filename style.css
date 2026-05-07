@@ -519,12 +519,12 @@ img { display: block; }
 /* Filled slot — EA card image in a portrait card shape */
 .slot-card-wrap {
   position: relative;
-  width: 52px;
+  width: 82px;
   border-radius: 4px;
   overflow: visible;
 }
 .slot-card-img {
-  width: 52px;
+  width: 82px;
   height: auto;
   display: block;
   border-radius: 4px;
@@ -533,26 +533,34 @@ img { display: block; }
 }
 .pitch-slot:hover .slot-card-img { filter: drop-shadow(0 3px 10px rgba(212,175,55,.5)); }
 .pitch-slot.selected .slot-card-img { filter: drop-shadow(0 0 0 2px #fff) drop-shadow(0 0 6px var(--gold)); }
+.pitch-slot.drag-over .slot-card-img,
+.pitch-slot.drag-over .slot-empty-ring {
+  filter: drop-shadow(0 0 8px rgba(212,175,55,.9));
+  border-color: var(--gold);
+}
 
 .slot-card-fallback {
-  width: 52px; height: 70px;
+  width: 82px; height: 110px;
   background: rgba(212,175,55,0.1);
   border: 1px solid rgba(212,175,55,0.2);
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1rem;
+  font-size: 1.4rem;
   font-weight: 900;
   color: var(--gold-light);
 }
 
+/* Dragging state */
+.pitch-slot.dragging { opacity: 0.4; }
+
 .slot-name {
-  font-size: 0.55rem;
+  font-size: 0.62rem;
   color: rgba(255,255,255,.85);
   font-weight: 600;
   text-align: center;
-  max-width: 64px;
+  max-width: 88px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -560,7 +568,7 @@ img { display: block; }
   text-shadow: 0 1px 3px rgba(0,0,0,.9);
 }
 .slot-pos-label {
-  font-size: 0.5rem;
+  font-size: 0.58rem;
   font-weight: 700;
   color: var(--gold);
   letter-spacing: .4px;
@@ -572,12 +580,12 @@ img { display: block; }
 .slot-remove-btn {
   position: absolute;
   top: -5px; right: -5px;
-  width: 16px; height: 16px;
+  width: 18px; height: 18px;
   border-radius: 50%;
   background: #c0392b;
   color: #fff;
   border: none;
-  font-size: 0.55rem;
+  font-size: 0.6rem;
   display: flex;
   align-items: center;
   justify-content: center;

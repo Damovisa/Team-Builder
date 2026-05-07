@@ -138,6 +138,8 @@ function buildResultCard(player, inTeam = false) {
 // ────────────────────────────────────────────────────────────────
 // RENDER: PITCH
 // ────────────────────────────────────────────────────────────────
+let dragSourceIdx = null;
+
 function renderPitch() {
   const container = document.getElementById('slotsContainer');
   container.innerHTML = '';
@@ -151,8 +153,10 @@ function renderPitch() {
     slotEl.className = `pitch-slot${isFilled ? ' filled' : ''}${isSelected ? ' selected' : ''}`;
     slotEl.style.left = `${slotDef.x}%`;
     slotEl.style.top  = `${slotDef.y}%`;
+    slotEl.dataset.idx = idx;
 
     if (isFilled) {
+      slotEl.draggable = true;
       slotEl.innerHTML = `
         <div class="slot-card-wrap">
           <img class="slot-card-img" src="${esc(player.card)}" alt="${esc(player.Name)}"
@@ -170,6 +174,7 @@ function renderPitch() {
         <div class="slot-label-empty">Empty</div>`;
     }
 
+    // Click: remove or select
     slotEl.addEventListener('click', (e) => {
       const removeBtn = e.target.closest('.slot-remove-btn');
       if (removeBtn) {
@@ -178,6 +183,41 @@ function renderPitch() {
         return;
       }
       toggleSelectSlot(idx);
+    });
+
+    // Drag source
+    slotEl.addEventListener('dragstart', (e) => {
+      if (!isFilled) { e.preventDefault(); return; }
+      dragSourceIdx = idx;
+      slotEl.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    slotEl.addEventListener('dragend', () => {
+      slotEl.classList.remove('dragging');
+      dragSourceIdx = null;
+      // Clear any lingering drag-over highlights
+      container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    });
+
+    // Drop target
+    slotEl.addEventListener('dragover', (e) => {
+      if (dragSourceIdx === null || dragSourceIdx === idx) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+      slotEl.classList.add('drag-over');
+    });
+    slotEl.addEventListener('dragleave', () => slotEl.classList.remove('drag-over'));
+    slotEl.addEventListener('drop', (e) => {
+      e.preventDefault();
+      slotEl.classList.remove('drag-over');
+      if (dragSourceIdx === null || dragSourceIdx === idx) return;
+      // Swap the two slots
+      const tmp = team[dragSourceIdx];
+      team[dragSourceIdx] = team[idx];
+      team[idx] = tmp;
+      dragSourceIdx = null;
+      afterTeamChange();
     });
 
     container.appendChild(slotEl);
