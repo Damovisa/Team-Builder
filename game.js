@@ -267,7 +267,7 @@ function renderPackCards(players, content, animate = false) {
       grid.className = 'pack-card-grid';
       filtered.forEach((player, i) => {
         const inTeam = inTeamIds.has(player.id);
-        const card = buildPackCard(player, inTeam);
+        const card = buildPackCard(player, inTeam, i);
         card.style.animationDelay = `${i * 2000}ms`;
         card.classList.add('pack-card-animate');
         grid.appendChild(card);
@@ -279,7 +279,7 @@ function renderPackCards(players, content, animate = false) {
     grid.className = 'pack-card-grid';
     filtered.forEach((player, i) => {
       const inTeam = inTeamIds.has(player.id);
-      const card = buildPackCard(player, inTeam);
+      const card = buildPackCard(player, inTeam, i);
       grid.appendChild(card);
     });
     content.appendChild(grid);
@@ -297,9 +297,11 @@ function preloadImages(urls) {
 }
 
 // Build a compact card for the pack view — image only with hover tooltip
-function buildPackCard(player, inTeam) {
+function buildPackCard(player, inTeam, colIdx = 0) {
   const card = document.createElement('div');
-  card.className = `pack-card${inTeam ? ' pack-card-in-team' : ''}`;
+  // Left column → tooltip on right; right column → tooltip on left
+  const tooltipSide = (colIdx % 2 === 0) ? 'tooltip-right' : 'tooltip-left';
+  card.className = `pack-card ${tooltipSide}${inTeam ? ' pack-card-in-team' : ''}`;
   card.dataset.playerId = player.id;
 
   card.innerHTML = `
