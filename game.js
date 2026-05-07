@@ -55,7 +55,7 @@ async function initGame() {
     };
 
     // Fetch top 200 players, then pick 12 random from them
-    progressText.textContent = `Loading elite players…`;
+    progressText.textContent = `0 / ${total} cards`;
     const top200 = await fetchByRankRange(1, 200);
     // Shuffle and pick ELITE_NEEDED unique elite players
     const shuffledElite = top200.sort(() => Math.random() - 0.5);
