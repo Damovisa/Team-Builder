@@ -376,7 +376,7 @@ img { display: block; }
   color: var(--gold-light);
 }
 .rs-lbl {
-  font-size: 0.58rem;
+  font-size: 0.6rem;
   color: var(--text-muted);
   text-transform: uppercase;
 }
@@ -645,7 +645,7 @@ img { display: block; }
   border-right: 1px solid var(--border);
 }
 .team-stat:last-child { border-right: none; }
-.tstat-label { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; }
+.tstat-label { font-size: 0.55rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: .5px; }
 .tstat-value { font-size: 1rem; font-weight: 800; color: var(--gold-light); margin-top: 2px; }
 
 /* ════════════════════════════════════

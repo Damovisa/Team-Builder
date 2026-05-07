@@ -113,8 +113,9 @@ function buildResultCard(player, inTeam = false) {
   card.className = `result-card${inTeam ? ' in-team' : ''}`;
   card.dataset.playerId = player.id;
 
+  const STAT_LABELS = { pac:'Pace', sho:'Shooting', pas:'Passing', dri:'Dribbling', def:'Defense', phy:'Physicality' };
   const stats = ['pac','sho','pas','dri','def','phy']
-    .map(k => `<div class="rs-stat"><span class="rs-val">${esc(player[k] ?? '—')}</span><span class="rs-lbl">${k.toUpperCase()}</span></div>`)
+    .map(k => `<div class="rs-stat"><span class="rs-val">${esc(player[k] ?? '—')}</span><span class="rs-lbl">${STAT_LABELS[k]}</span></div>`)
     .join('');
 
   card.innerHTML = `
