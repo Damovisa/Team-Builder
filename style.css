@@ -627,6 +627,25 @@ img { display: block; }
 }
 .pitch-slot:hover .slot-remove-btn { opacity: 1; }
 
+/* Pitch card hover tooltip */
+.slot-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-panel);
+  border: 1px solid var(--gold);
+  border-radius: 6px;
+  padding: 8px 10px;
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .18s;
+  z-index: 60;
+  box-shadow: var(--shadow);
+}
+.pitch-slot:hover .slot-tooltip { opacity: 1; }
+
 /* ════════════════════════════════════
    TEAM STATS BAR
    ════════════════════════════════════ */

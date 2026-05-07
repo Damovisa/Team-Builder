@@ -165,6 +165,9 @@ function renderPitch() {
     slotEl.dataset.idx = idx;
 
     if (isFilled) {
+      const altPos = Array.isArray(player['alternative positions']) && player['alternative positions'].length
+        ? player['alternative positions'].join(', ')
+        : null;
       slotEl.draggable = true;
       slotEl.innerHTML = `
         <div class="slot-card-wrap">
@@ -172,6 +175,13 @@ function renderPitch() {
                onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
           <div class="slot-card-fallback" style="display:none">${esc(player.ovr)}</div>
           <button class="slot-remove-btn" data-idx="${idx}" aria-label="Remove ${esc(player.name)}">✕</button>
+          <div class="slot-tooltip">
+            <div class="tt-name">${esc(player.name)}</div>
+            <div class="tt-row"><span class="tt-label">Club</span> ${esc(player.team)}</div>
+            <div class="tt-row"><span class="tt-label">Nation</span> ${esc(player.nation)}</div>
+            <div class="tt-row"><span class="tt-label">Age</span> ${esc(player.age)}</div>
+            <div class="tt-row"><span class="tt-label">Pos</span> ${esc(player.position)}${altPos ? ` <span class="tt-alt">(${esc(altPos)})</span>` : ''}</div>
+          </div>
         </div>
         <div class="slot-name">${esc(shortName(player.name))}</div>
         <div class="slot-pos-label">${esc(slotDef.pos)}</div>`;
