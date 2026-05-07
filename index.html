@@ -42,7 +42,7 @@
           />
           <button id="searchBtn" class="btn-primary">🔍</button>
         </div>
-        <div class="search-hint">Enter the player's full name as it appears on their card</div>
+        <div class="search-hint">Partial names work — e.g. "Salah" or "Haaland"</div>
       </div>
 
       <!-- By Team -->
@@ -69,10 +69,41 @@
           <input type="number" id="rankTo"   class="rank-input" value="20" min="1" max="500" />
           <button id="rankSearchBtn" class="btn-primary">Load</button>
         </div>
-        <div class="search-hint">Fetches multiple players in parallel</div>
+        <div class="search-hint">Single API call — results sorted by rank</div>
       </div>
 
       <div class="search-status" id="searchStatus"></div>
+
+      <!-- Position filter — shown when results are present -->
+      <div class="pos-filter-bar hidden" id="posFilterBar">
+        <label class="pos-filter-label" for="posFilter">Position:</label>
+        <select id="posFilter" class="pos-filter-select">
+          <option value="">All</option>
+          <optgroup label="Goalkeeper">
+            <option value="GK">GK</option>
+          </optgroup>
+          <optgroup label="Defenders">
+            <option value="CB">CB</option>
+            <option value="LB">LB</option>
+            <option value="RB">RB</option>
+            <option value="LWB">LWB</option>
+            <option value="RWB">RWB</option>
+          </optgroup>
+          <optgroup label="Midfielders">
+            <option value="CDM">CDM</option>
+            <option value="CM">CM</option>
+            <option value="CAM">CAM</option>
+            <option value="LM">LM</option>
+            <option value="RM">RM</option>
+          </optgroup>
+          <optgroup label="Forwards">
+            <option value="LW">LW</option>
+            <option value="RW">RW</option>
+            <option value="CF">CF</option>
+            <option value="ST">ST</option>
+          </optgroup>
+        </select>
+      </div>
 
       <!-- Slot-selection hint injected here by JS -->
 
@@ -129,31 +160,31 @@
           <span class="tstat-value" id="statPlayers">0/11</span>
         </div>
         <div class="team-stat">
-          <span class="tstat-label">OVR</span>
+          <span class="tstat-label">Overall</span>
           <span class="tstat-value" id="statRating">—</span>
         </div>
         <div class="team-stat">
-          <span class="tstat-label">PAC</span>
+          <span class="tstat-label">Pace</span>
           <span class="tstat-value" id="statPace">—</span>
         </div>
         <div class="team-stat">
-          <span class="tstat-label">SHO</span>
+          <span class="tstat-label">Shooting</span>
           <span class="tstat-value" id="statShooting">—</span>
         </div>
         <div class="team-stat">
-          <span class="tstat-label">PAS</span>
+          <span class="tstat-label">Passing</span>
           <span class="tstat-value" id="statPassing">—</span>
         </div>
         <div class="team-stat">
-          <span class="tstat-label">DRI</span>
+          <span class="tstat-label">Dribbling</span>
           <span class="tstat-value" id="statDribbling">—</span>
         </div>
         <div class="team-stat">
-          <span class="tstat-label">DEF</span>
+          <span class="tstat-label">Defense</span>
           <span class="tstat-value" id="statDefending">—</span>
         </div>
         <div class="team-stat">
-          <span class="tstat-label">PHY</span>
+          <span class="tstat-label">Physicality</span>
           <span class="tstat-value" id="statPhysicality">—</span>
         </div>
       </div>

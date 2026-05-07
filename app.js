@@ -1,6 +1,6 @@
 /* ================================================================
    FC26 Team Builder – app.js
-   API: https://api.msmc.cc/api/fc26  (no auth required)
+   API: https://api.msmc.cc/api/eafc  (no auth required)
    ================================================================ */
 
 'use strict';
@@ -8,7 +8,7 @@
 // ────────────────────────────────────────────────────────────────
 // API
 // ────────────────────────────────────────────────────────────────
-const API_BASE = 'https://api.msmc.cc/api/fc26';
+const API_BASE = 'https://api.msmc.cc/api/eafc';
 
 async function apiFetch(path) {
   const res = await fetch(`${API_BASE}${path}`);
@@ -18,9 +18,16 @@ async function apiFetch(path) {
   return data;
 }
 
-const fetchByName  = (name)  => apiFetch(`/player/name/${encodeURIComponent(name)}`);
-const fetchByTeam  = (team)  => apiFetch(`/team/${encodeURIComponent(team)}`);
-const fetchByRank  = (rank)  => apiFetch(`/player/rank/${rank}`);
+// Returns array of matching players
+const fetchByName      = (name) => apiFetch(`/players?name=${encodeURIComponent(name)}&game=fc26`);
+const fetchByTeam      = (team) => apiFetch(`/players?team=${encodeURIComponent(team)}&game=fc26`);
+// Single call for a rank range — uses < / > operators in the query string
+const fetchByRankRange = (from, to) => {
+  let qs = `game=fc26`;
+  if (from > 1) qs += `&rank%3E${from - 1}`;
+  qs += `&rank%3C${to + 1}`;
+  return apiFetch(`/players?${qs}`);
+};
 
 // ────────────────────────────────────────────────────────────────
 // FORMATIONS  –  x/y as % of pitch (0,0 = top-left, attack at top)
@@ -73,6 +80,7 @@ let currentFormation = '4-3-3';
 let selectedSlot     = null;
 let searchType       = 'name';
 let isSearching      = false;
+let allResults       = [];   // full unfiltered result set from last search
 
 // ────────────────────────────────────────────────────────────────
 // HELPERS
@@ -103,22 +111,23 @@ function posGroup(pos) { return POS_GROUP[pos] || 'MID'; }
 function buildResultCard(player, inTeam = false) {
   const card = document.createElement('div');
   card.className = `result-card${inTeam ? ' in-team' : ''}`;
-  card.dataset.playerId = player.ID;
+  card.dataset.playerId = player.id;
 
-  const stats = ['PAC','SHO','PAS','DRI','DEF','PHY']
-    .map(k => `<div class="rs-stat"><span class="rs-val">${esc(player[k] ?? '—')}</span><span class="rs-lbl">${k}</span></div>`)
+  const STAT_LABELS = { pac:'Pace', sho:'Shooting', pas:'Passing', dri:'Dribbling', def:'Defense', phy:'Physicality' };
+  const stats = ['pac','sho','pas','dri','def','phy']
+    .map(k => `<div class="rs-stat"><span class="rs-val">${esc(player[k] ?? '—')}</span><span class="rs-lbl">${STAT_LABELS[k]}</span></div>`)
     .join('');
 
   card.innerHTML = `
     ${inTeam ? '<div class="result-in-team-badge">✓ In Team</div>' : ''}
     <div class="result-card-img-wrap">
-      <img class="result-card-img" src="${esc(player.card)}" alt="${esc(player.Name)} card"
-           onerror="this.src='';this.closest('.result-card-img-wrap').innerHTML='<div class=card-img-fallback>${esc(player.OVR)}</div>'">
+      <img class="result-card-img" src="${esc(player.card)}" alt="${esc(player.name)} card"
+           onerror="this.src='';this.closest('.result-card-img-wrap').innerHTML='<div class=card-img-fallback>${esc(player.ovr)}</div>'">
     </div>
     <div class="result-card-info">
-      <div class="rc-name" title="${esc(player.Name)}">${esc(player.Name)}</div>
-      <div class="rc-meta">${esc(player.Team)} · ${esc(player.League)}</div>
-      <div class="rc-meta">${esc(player.Nation)} · Age ${esc(player.Age)}</div>
+      <div class="rc-name" title="${esc(player.name)}">${esc(player.name)}</div>
+      <div class="rc-meta">${esc(player.team)} · ${esc(player.league)}</div>
+      <div class="rc-meta">${esc(player.nation)} · Age ${esc(player.age)}</div>
       <div class="rc-stats">${stats}</div>
     </div>
     <button class="rc-add-btn${inTeam ? ' added' : ''}" title="${inTeam ? 'Already in team' : 'Add to team'}">
@@ -138,6 +147,8 @@ function buildResultCard(player, inTeam = false) {
 // ────────────────────────────────────────────────────────────────
 // RENDER: PITCH
 // ────────────────────────────────────────────────────────────────
+let dragSourceIdx = null;
+
 function renderPitch() {
   const container = document.getElementById('slotsContainer');
   container.innerHTML = '';
@@ -151,16 +162,18 @@ function renderPitch() {
     slotEl.className = `pitch-slot${isFilled ? ' filled' : ''}${isSelected ? ' selected' : ''}`;
     slotEl.style.left = `${slotDef.x}%`;
     slotEl.style.top  = `${slotDef.y}%`;
+    slotEl.dataset.idx = idx;
 
     if (isFilled) {
+      slotEl.draggable = true;
       slotEl.innerHTML = `
         <div class="slot-card-wrap">
-          <img class="slot-card-img" src="${esc(player.card)}" alt="${esc(player.Name)}"
+          <img class="slot-card-img" src="${esc(player.card)}" alt="${esc(player.name)}"
                onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
-          <div class="slot-card-fallback" style="display:none">${esc(player.OVR)}</div>
-          <button class="slot-remove-btn" data-idx="${idx}" aria-label="Remove ${esc(player.Name)}">✕</button>
+          <div class="slot-card-fallback" style="display:none">${esc(player.ovr)}</div>
+          <button class="slot-remove-btn" data-idx="${idx}" aria-label="Remove ${esc(player.name)}">✕</button>
         </div>
-        <div class="slot-name">${esc(shortName(player.Name))}</div>
+        <div class="slot-name">${esc(shortName(player.name))}</div>
         <div class="slot-pos-label">${esc(slotDef.pos)}</div>`;
     } else {
       slotEl.innerHTML = `
@@ -170,6 +183,7 @@ function renderPitch() {
         <div class="slot-label-empty">Empty</div>`;
     }
 
+    // Click: remove or select
     slotEl.addEventListener('click', (e) => {
       const removeBtn = e.target.closest('.slot-remove-btn');
       if (removeBtn) {
@@ -178,6 +192,41 @@ function renderPitch() {
         return;
       }
       toggleSelectSlot(idx);
+    });
+
+    // Drag source
+    slotEl.addEventListener('dragstart', (e) => {
+      if (!isFilled) { e.preventDefault(); return; }
+      dragSourceIdx = idx;
+      slotEl.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    slotEl.addEventListener('dragend', () => {
+      slotEl.classList.remove('dragging');
+      dragSourceIdx = null;
+      // Clear any lingering drag-over highlights
+      container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+    });
+
+    // Drop target
+    slotEl.addEventListener('dragover', (e) => {
+      if (dragSourceIdx === null || dragSourceIdx === idx) return;
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+      slotEl.classList.add('drag-over');
+    });
+    slotEl.addEventListener('dragleave', () => slotEl.classList.remove('drag-over'));
+    slotEl.addEventListener('drop', (e) => {
+      e.preventDefault();
+      slotEl.classList.remove('drag-over');
+      if (dragSourceIdx === null || dragSourceIdx === idx) return;
+      // Swap the two slots
+      const tmp = team[dragSourceIdx];
+      team[dragSourceIdx] = team[idx];
+      team[idx] = tmp;
+      dragSourceIdx = null;
+      afterTeamChange();
     });
 
     container.appendChild(slotEl);
@@ -190,33 +239,52 @@ function renderPitch() {
 function addToTeam(player) {
   if (selectedSlot !== null) {
     team[selectedSlot] = player;
-    showToast(`${player.Name} → ${FORMATIONS[currentFormation][selectedSlot].pos}`);
+    showToast(`${player.name} → ${FORMATIONS[currentFormation][selectedSlot].pos}`);
     selectedSlot = null;
     afterTeamChange();
     return;
   }
 
-  // Auto-assign: prefer a slot matching the player's position group
-  const group = posGroup(player.Position);
+  // Auto-assign priority:
+  //   1. Exact position match (e.g. CM → CM slot)
+  //   2. Player's alternative positions match a slot (e.g. RW alt → RW slot)
+  //   3. Same position group (e.g. CM → any MID slot)
+  //   4. Any empty slot
   const formation = FORMATIONS[currentFormation];
+  const altPositions = Array.isArray(player['alternative positions']) ? player['alternative positions'] : [];
+  const group = posGroup(player.position);
   let target = -1;
 
+  // Pass 1: exact match
   for (let i = 0; i < 11; i++) {
-    if (!team[i] && posGroup(formation[i].pos) === group) { target = i; break; }
+    if (!team[i] && formation[i].pos === player.position) { target = i; break; }
   }
+  // Pass 2: alternative positions exact match
+  if (target === -1) {
+    for (let i = 0; i < 11; i++) {
+      if (!team[i] && altPositions.includes(formation[i].pos)) { target = i; break; }
+    }
+  }
+  // Pass 3: same group
+  if (target === -1) {
+    for (let i = 0; i < 11; i++) {
+      if (!team[i] && posGroup(formation[i].pos) === group) { target = i; break; }
+    }
+  }
+  // Pass 4: any empty slot
   if (target === -1) {
     for (let i = 0; i < 11; i++) { if (!team[i]) { target = i; break; } }
   }
   if (target === -1) { showToast('Team is full! Remove a player first.', 'error'); return; }
 
   team[target] = player;
-  showToast(`${player.Name} → ${formation[target].pos}`);
+  showToast(`${player.name} → ${formation[target].pos}`);
   afterTeamChange();
 }
 
 function removeFromTeam(idx) {
   if (team[idx]) {
-    showToast(`${team[idx].Name} removed`);
+    showToast(`${team[idx].name} removed`);
     team[idx] = null;
     afterTeamChange();
   }
@@ -267,38 +335,21 @@ function updateTeamStats() {
     ? Math.round(players.reduce((s, p) => s + (parseInt(p[key]) || 0), 0) / n)
     : '—';
 
-  document.getElementById('statRating').textContent     = avg('OVR');
-  document.getElementById('statPace').textContent       = avg('PAC');
-  document.getElementById('statShooting').textContent   = avg('SHO');
-  document.getElementById('statPassing').textContent    = avg('PAS');
-  document.getElementById('statDribbling').textContent  = avg('DRI');
-  document.getElementById('statDefending').textContent  = avg('DEF');
-  document.getElementById('statPhysicality').textContent = avg('PHY');
+  document.getElementById('statRating').textContent     = avg('ovr');
+  document.getElementById('statPace').textContent       = avg('pac');
+  document.getElementById('statShooting').textContent   = avg('sho');
+  document.getElementById('statPassing').textContent    = avg('pas');
+  document.getElementById('statDribbling').textContent  = avg('dri');
+  document.getElementById('statDefending').textContent  = avg('def');
+  document.getElementById('statPhysicality').textContent = avg('phy');
 }
 
 // ────────────────────────────────────────────────────────────────
 // REFRESH IN-TEAM BADGES ON RESULT CARDS
 // ────────────────────────────────────────────────────────────────
 function refreshCardStates() {
-  const inTeamIds = new Set(team.filter(Boolean).map(p => p.ID));
-
-  document.querySelectorAll('.result-card').forEach(card => {
-    const alreadyIn = inTeamIds.has(card.dataset.playerId);
-    const addBtn = card.querySelector('.rc-add-btn');
-
-    if (alreadyIn) {
-      if (!card.querySelector('.result-in-team-badge')) {
-        const b = document.createElement('div');
-        b.className = 'result-in-team-badge';
-        b.textContent = '✓ In Team';
-        card.prepend(b);
-      }
-      if (addBtn) { addBtn.classList.add('added'); addBtn.textContent = '✓'; }
-    } else {
-      card.querySelector('.result-in-team-badge')?.remove();
-      if (addBtn) { addBtn.classList.remove('added'); addBtn.textContent = '+'; }
-    }
-  });
+  // Re-render results from stored allResults so in-team badges are always accurate
+  if (allResults.length) applyPosFilter();
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -312,8 +363,9 @@ async function doNameSearch() {
 
   showLoading();
   try {
-    const player = await fetchByName(name);
-    renderSinglePlayer(player);
+    const players = await fetchByName(name);
+    if (!Array.isArray(players) || !players.length) throw new Error('No players found');
+    renderPlayerList(players);
   } catch (err) {
     showError(err.message);
   } finally {
@@ -340,8 +392,8 @@ async function doTeamSearch() {
 }
 
 async function doRankSearch() {
-  const from = Math.max(1, parseInt(document.getElementById('rankFrom').value) || 1);
-  const to   = Math.min(500, parseInt(document.getElementById('rankTo').value)  || 20);
+  const from = Math.max(1,   parseInt(document.getElementById('rankFrom').value) || 1);
+  const to   = Math.min(500, parseInt(document.getElementById('rankTo').value)   || 20);
   if (from > to) { setStatus('⚠️ "From" rank must be ≤ "To" rank'); return; }
   if (isSearching) return;
   isSearching = true;
@@ -349,10 +401,10 @@ async function doRankSearch() {
   const count = to - from + 1;
   showLoading(`Loading ${count} player${count !== 1 ? 's' : ''}…`);
   try {
-    const ranks   = Array.from({ length: count }, (_, i) => from + i);
-    const results = await Promise.all(ranks.map(r => fetchByRank(r).catch(() => null)));
-    const players = results.filter(Boolean);
-    if (!players.length) throw new Error('No players found in that rank range');
+    const players = await fetchByRankRange(from, to);
+    if (!Array.isArray(players) || !players.length) throw new Error('No players found in that rank range');
+    // Sort by rank ascending
+    players.sort((a, b) => parseInt(a.rank) - parseInt(b.rank));
     renderPlayerList(players);
   } catch (err) {
     showError(err.message);
@@ -365,25 +417,53 @@ async function doRankSearch() {
 // RENDER RESULTS
 // ────────────────────────────────────────────────────────────────
 function renderSinglePlayer(player) {
-  const resultsEl = document.getElementById('searchResults');
-  setStatus('1 player found');
-  resultsEl.innerHTML = '';
-  const inTeam = team.filter(Boolean).some(p => p.ID === player.ID);
-  resultsEl.appendChild(buildResultCard(player, inTeam));
+  allResults = [player];
+  applyPosFilter();
 }
 
 function renderPlayerList(players) {
+  allResults = players;
+  applyPosFilter();
+}
+
+// Filter allResults by the selected position (main or alternative) and render
+function applyPosFilter() {
+  const pos = document.getElementById('posFilter').value;
+  const filtered = pos
+    ? allResults.filter(p => {
+        const alts = Array.isArray(p['alternative positions']) ? p['alternative positions'] : [];
+        return p.position === pos || alts.includes(pos);
+      })
+    : allResults;
+
   const resultsEl = document.getElementById('searchResults');
-  const inTeamIds = new Set(team.filter(Boolean).map(p => p.ID));
-  setStatus(`${players.length} player${players.length !== 1 ? 's' : ''} found`);
+  const inTeamIds = new Set(team.filter(Boolean).map(p => p.id));
   resultsEl.innerHTML = '';
-  players.forEach(p => resultsEl.appendChild(buildResultCard(p, inTeamIds.has(p.ID))));
+
+  if (!filtered.length) {
+    resultsEl.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><p>No ${pos} players in these results</p></div>`;
+  } else {
+    filtered.forEach(p => resultsEl.appendChild(buildResultCard(p, inTeamIds.has(p.id))));
+  }
+
+  const total = allResults.length;
+  const shown = filtered.length;
+  setStatus(pos
+    ? `${shown} of ${total} player${total !== 1 ? 's' : ''} · filtered by ${pos}`
+    : `${total} player${total !== 1 ? 's' : ''} found`
+  );
+
+  // Show filter bar whenever there are results
+  document.getElementById('posFilterBar').classList.toggle('hidden', total === 0);
 }
 
 // ────────────────────────────────────────────────────────────────
 // UI HELPERS
 // ────────────────────────────────────────────────────────────────
 function showLoading(msg = 'Searching…') {
+  allResults = [];
+  document.getElementById('posFilterBar').classList.add('hidden');
+  document.getElementById('posFilter').value = '';
   document.getElementById('searchResults').innerHTML =
     `<div class="empty-state"><div class="spinner"></div><p>${msg}</p></div>`;
   setStatus('');
@@ -436,6 +516,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('teamInput').addEventListener('keydown', e => e.key === 'Enter' && doTeamSearch());
 
   document.getElementById('rankSearchBtn').addEventListener('click', doRankSearch);
+
+  // Position filter
+  document.getElementById('posFilter').addEventListener('change', applyPosFilter);
 
   // Formation
   document.getElementById('formationSelect').addEventListener('change', e => {
