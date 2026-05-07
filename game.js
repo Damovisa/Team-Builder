@@ -178,7 +178,7 @@ function renderPackSelector() {
   }
 }
 
-function renderCurrentPack() {
+function renderCurrentPack(animate = false) {
   const content = document.getElementById('packContent');
   if (!content) return;
   const nav = document.getElementById('packNav');
@@ -203,13 +203,14 @@ function renderCurrentPack() {
     document.getElementById('openPackBtn').addEventListener('click', () => {
       packOpened[currentPackIdx] = true;
       renderPackSelector();
-      renderCurrentPack();
+      // Animate cards appearing one by one
+      renderCurrentPack(true);
       renderGameStatus();
     });
     nav.innerHTML = '';
   } else {
     const packPlayers = packs[currentPackIdx];
-    renderPackCards(packPlayers, content);
+    renderPackCards(packPlayers, content, animate);
 
     // Navigation
     nav.innerHTML = '';
@@ -238,8 +239,11 @@ function renderCurrentPack() {
   }
 }
 
+// Track whether we're animating a pack open (to avoid re-render interrupts)
+let packAnimating = false;
+
 // Filter and render a list of players into the pack content area
-function renderPackCards(players, content) {
+function renderPackCards(players, content, animate = false) {
   const filtered = filterByPosition(players, packPosFilter);
   const inTeamIds = new Set(team.filter(Boolean).map(p => p.id));
   content.innerHTML = '';
@@ -254,15 +258,43 @@ function renderPackCards(players, content) {
         <p>${msg}</p>
       </div>`;
   } else {
-    const list = document.createElement('div');
-    list.className = 'pack-card-list';
-    filtered.forEach(player => {
+    const grid = document.createElement('div');
+    grid.className = 'pack-card-grid';
+    filtered.forEach((player, i) => {
       const inTeam = inTeamIds.has(player.id);
-      const card = buildResultCard(player, inTeam, (p) => gameAddToTeam(p));
-      list.appendChild(card);
+      const card = buildPackCard(player, inTeam);
+      if (animate) {
+        card.style.animationDelay = `${i * 150}ms`;
+        card.classList.add('pack-card-animate');
+      }
+      grid.appendChild(card);
     });
-    content.appendChild(list);
+    content.appendChild(grid);
   }
+}
+
+// Build a compact card for the pack view — image only with hover tooltip
+function buildPackCard(player, inTeam) {
+  const card = document.createElement('div');
+  card.className = `pack-card${inTeam ? ' pack-card-in-team' : ''}`;
+  card.dataset.playerId = player.id;
+
+  card.innerHTML = `
+    ${inTeam ? '<div class="pack-card-badge">✓</div>' : ''}
+    <img class="pack-card-img" src="${esc(player.card)}" alt="${esc(player.name)}"
+         onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+    <div class="pack-card-fallback" style="display:none">${esc(player.ovr)}</div>
+    <div class="pack-card-tooltip">
+      <strong>${esc(player.name)}</strong><br>
+      ${esc(player.team)} · ${esc(player.nation)}<br>
+      Age ${esc(player.age)} · ${esc(player.position)}
+    </div>`;
+
+  if (!inTeam) {
+    card.addEventListener('click', () => gameAddToTeam(player));
+    card.style.cursor = 'pointer';
+  }
+  return card;
 }
 
 // Position filter logic — supports individual positions and group filters

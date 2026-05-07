@@ -895,6 +895,98 @@ img { display: block; }
   gap: 8px;
 }
 
+/* Pack card grid — compact image-only cards */
+.pack-card-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  padding: 4px;
+}
+.pack-card {
+  position: relative;
+  border-radius: 6px;
+  overflow: visible;
+  transition: transform .18s, box-shadow .18s;
+}
+.pack-card:hover {
+  transform: scale(1.05);
+  z-index: 10;
+}
+.pack-card-in-team {
+  opacity: 0.5;
+  cursor: default !important;
+}
+.pack-card-img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 6px;
+  filter: drop-shadow(0 2px 8px rgba(0,0,0,0.5));
+}
+.pack-card-fallback {
+  width: 100%;
+  aspect-ratio: 0.72;
+  background: rgba(212,175,55,0.1);
+  border: 1px solid rgba(212,175,55,0.2);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: var(--gold-light);
+}
+.pack-card-badge {
+  position: absolute;
+  top: 4px; right: 4px;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: #1b5e20;
+  color: #81c784;
+  font-size: 0.6rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+/* Hover tooltip */
+.pack-card-tooltip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--bg-panel);
+  border: 1px solid var(--gold);
+  border-radius: 6px;
+  padding: 8px 10px;
+  font-size: 0.7rem;
+  color: var(--text-primary);
+  white-space: nowrap;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .18s;
+  z-index: 20;
+  box-shadow: var(--shadow);
+  line-height: 1.5;
+}
+.pack-card:hover .pack-card-tooltip {
+  opacity: 1;
+}
+
+/* Pack open animation */
+.pack-card-animate {
+  opacity: 0;
+  transform: scale(0.7) rotateY(90deg);
+  animation: cardReveal 0.4s ease forwards;
+}
+@keyframes cardReveal {
+  0%   { opacity: 0; transform: scale(0.7) rotateY(90deg); }
+  60%  { opacity: 1; transform: scale(1.05) rotateY(0deg); }
+  100% { opacity: 1; transform: scale(1) rotateY(0deg); }
+}
+
 /* Pack navigation */
 .pack-nav {
   display: flex;
