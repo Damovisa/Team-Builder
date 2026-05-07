@@ -867,6 +867,23 @@ img { display: block; }
   border-color: var(--gold-dark);
 }
 
+/* Pack selector — Platinum pack */
+.pack-btn-platinum {
+  border-color: #7b68ee;
+  background: rgba(123,104,238,0.08);
+}
+.pack-btn-platinum.active {
+  border-color: #9b8bff;
+  background: rgba(123,104,238,0.2);
+  color: #c4b8ff;
+}
+
+/* Platinum open button */
+.pack-open-btn-platinum {
+  background: linear-gradient(135deg, #5b4fcf, #9b8bff) !important;
+  color: #fff !important;
+}
+
 /* Pack content area */
 .pack-content {
   flex: 1;

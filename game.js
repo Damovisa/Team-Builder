@@ -18,6 +18,7 @@ let currentPackIdx = 0;   // Currently viewed pack index (or ALL_PACKS_IDX)
 let playerPackMap = {};   // player.id → pack index (for returning players to packs)
 let packPosFilter = '';   // Current position filter for pack view
 let packTierFilter = '';  // Current tier filter: '', 'gold', 'silver', 'bronze'
+let platinumPackIdx = -1; // Which pack is the platinum pack
 
 // ────────────────────────────────────────────────────────────────
 // INIT GAME
@@ -35,26 +36,63 @@ async function initGame() {
     </div>`;
 
   try {
-    const allPlayers = [];
-    const total = PACK_COUNT * CARDS_PER_PACK;
+    // Total cards: 4 normal packs × 8 cards + 1 platinum pack × 8 cards = 40
+    // Normal packs: 7 random + 1 from top 200 each = 28 random + 4 elite
+    // Platinum pack: 8 from top 200
+    // Elite cards needed: 4 (one per normal pack) + 8 (platinum) = 12
+    const RANDOM_NEEDED = 4 * 7; // 28
+    const ELITE_NEEDED = 4 + CARDS_PER_PACK; // 12
+    const total = RANDOM_NEEDED + ELITE_NEEDED; // 40
+
     const progressFill = document.getElementById('packProgressFill');
     const progressText = document.getElementById('packProgressText');
+    let fetched = 0;
 
-    // Fetch in small batches to show progress without overwhelming the API
-    for (let i = 0; i < total; i++) {
+    const updateProgress = () => {
+      fetched++;
+      progressFill.style.width = `${(fetched / total) * 100}%`;
+      progressText.textContent = `${fetched} / ${total} cards`;
+    };
+
+    // Fetch top 200 players, then pick 12 random from them
+    progressText.textContent = `Loading elite players…`;
+    const top200 = await fetchByRankRange(1, 200);
+    // Shuffle and pick ELITE_NEEDED unique elite players
+    const shuffledElite = top200.sort(() => Math.random() - 0.5);
+    const elitePicks = shuffledElite.slice(0, ELITE_NEEDED);
+    for (let i = 0; i < elitePicks.length; i++) updateProgress();
+
+    // Fetch 28 random players
+    const randomPlayers = [];
+    for (let i = 0; i < RANDOM_NEEDED; i++) {
       const result = await fetchRandomPlayer();
       const player = Array.isArray(result) ? result[0] : result;
-      if (player) allPlayers.push(player);
-      const count = allPlayers.length;
-      progressFill.style.width = `${(count / total) * 100}%`;
-      progressText.textContent = `${count} / ${total} cards`;
+      if (player) randomPlayers.push(player);
+      updateProgress();
     }
 
-    // Split into packs
+    // Build packs — pick which one is platinum
+    platinumPackIdx = Math.floor(Math.random() * PACK_COUNT);
     packs = [];
     playerPackMap = {};
+
+    let randomIdx = 0;
+    let eliteIdx = 0;
     for (let i = 0; i < PACK_COUNT; i++) {
-      const packPlayers = allPlayers.slice(i * CARDS_PER_PACK, (i + 1) * CARDS_PER_PACK);
+      let packPlayers;
+      if (i === platinumPackIdx) {
+        // Platinum pack: 8 elite cards
+        packPlayers = elitePicks.slice(eliteIdx, eliteIdx + CARDS_PER_PACK);
+        eliteIdx += CARDS_PER_PACK;
+      } else {
+        // Normal pack: 7 random + 1 elite
+        packPlayers = randomPlayers.slice(randomIdx, randomIdx + 7);
+        randomIdx += 7;
+        packPlayers.push(elitePicks[eliteIdx]);
+        eliteIdx++;
+        // Shuffle so elite card isn't always last
+        packPlayers.sort(() => Math.random() - 0.5);
+      }
       packs.push(packPlayers);
       packPlayers.forEach(p => { playerPackMap[p.id] = i; });
     }
@@ -166,9 +204,12 @@ function renderPackSelector() {
   const allOpened = packOpened.every(Boolean);
 
   for (let i = 0; i < PACK_COUNT; i++) {
+    const isPlatinum = i === platinumPackIdx;
     const btn = document.createElement('button');
-    btn.className = `pack-btn${i === currentPackIdx ? ' active' : ''}${packOpened[i] ? ' opened' : ''}`;
-    btn.textContent = packOpened[i] ? `Pack ${i + 1}` : `📦 ${i + 1}`;
+    btn.className = `pack-btn${i === currentPackIdx ? ' active' : ''}${packOpened[i] ? ' opened' : ''}${isPlatinum ? ' pack-btn-platinum' : ''}`;
+    btn.textContent = packOpened[i]
+      ? (isPlatinum ? '💎 Platinum' : `Pack ${i + 1}`)
+      : (isPlatinum ? '💎' : `📦 ${i + 1}`);
     btn.addEventListener('click', () => {
       currentPackIdx = i;
       renderPackSelector();
@@ -205,13 +246,13 @@ function renderCurrentPack(animate = false) {
   }
 
   if (!packOpened[currentPackIdx]) {
-    // Show "Open Pack" button
+    const isPlatinum = currentPackIdx === platinumPackIdx;
     content.innerHTML = `
       <div class="pack-unopened">
-        <div class="pack-icon">📦</div>
-        <p>Pack ${currentPackIdx + 1} of ${PACK_COUNT}</p>
-        <p class="pack-cards-hint">${CARDS_PER_PACK} cards inside</p>
-        <button class="btn-primary pack-open-btn" id="openPackBtn">Open Pack</button>
+        <div class="pack-icon">${isPlatinum ? '💎' : '📦'}</div>
+        <p>${isPlatinum ? 'Platinum Pack' : `Pack ${currentPackIdx + 1} of ${PACK_COUNT}`}</p>
+        <p class="pack-cards-hint">${isPlatinum ? '8 elite cards inside' : `${CARDS_PER_PACK} cards inside`}</p>
+        <button class="btn-primary pack-open-btn${isPlatinum ? ' pack-open-btn-platinum' : ''}" id="openPackBtn">Open Pack</button>
       </div>`;
     document.getElementById('openPackBtn').addEventListener('click', () => {
       packOpened[currentPackIdx] = true;
