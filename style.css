@@ -986,8 +986,8 @@ img { display: block; }
 
 /* Grey out siblings when hovering a card */
 .pack-card-grid:hover > .pack-card:not(:hover) {
-  opacity: 0.35 !important;
-  filter: grayscale(0.4);
+  opacity: 0.6 !important;
+  filter: grayscale(0.2);
 }
 .pack-card-grid:hover > .pack-card:hover {
   opacity: 1 !important;
