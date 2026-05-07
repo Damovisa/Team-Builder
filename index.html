@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>⚽ FUT Team Builder</title>
+  <title>⚽ FC26 Team Builder</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -12,33 +12,9 @@
   <header class="app-header">
     <div class="header-logo">
       <span class="logo-icon">⚽</span>
-      <span class="logo-text">FUT Team Builder</span>
-    </div>
-    <div class="header-actions">
-      <button class="btn-ghost" id="apiKeyBtn">🔑 API Key</button>
+      <span class="logo-text">FC26 Team Builder</span>
     </div>
   </header>
-
-  <!-- ===== API KEY MODAL ===== -->
-  <div class="modal-overlay" id="apiKeyModal" hidden>
-    <div class="modal">
-      <h3>Set RapidAPI Key</h3>
-      <p>Enter your RapidAPI key for <strong>API-Football</strong>, or edit <code>config.js</code>. Keys are stored in your browser only.</p>
-      <input type="text" id="apiKeyInput" placeholder="e.g. a1b2c3d4e5f6..." autocomplete="off" />
-      <div class="modal-actions">
-        <button class="btn-primary" id="saveApiKeyBtn">Save Key</button>
-        <button class="btn-ghost" id="closeModalBtn">Cancel</button>
-      </div>
-    </div>
-  </div>
-
-  <!-- ===== NO-KEY BANNER ===== -->
-  <div class="api-banner" id="apiBanner">
-    ⚠️ No API key set.
-    <button id="setBannerKeyBtn">Click here to add your RapidAPI key</button>
-    or edit <code>config.js</code>.
-    See <a href="README.md" target="_blank">README</a> for instructions.
-  </div>
 
   <!-- ===== MAIN LAYOUT ===== -->
   <main class="app-main">
@@ -50,42 +26,50 @@
         <div class="search-type-toggle">
           <button class="tab-btn active" data-type="name">By Name</button>
           <button class="tab-btn" data-type="team">By Team</button>
+          <button class="tab-btn" data-type="rank">Top Rated</button>
         </div>
       </div>
 
-      <div class="search-bar-container">
+      <!-- By Name -->
+      <div class="search-bar-container" id="paneByName">
         <div class="search-row">
           <input
             type="text"
             id="searchInput"
             class="search-input"
-            placeholder="Search players (min 3 chars)…"
+            placeholder="Full name, e.g. Erling Haaland"
             maxlength="60"
           />
-          <select id="seasonSelect" class="season-select">
-            <option value="2024">2024/25</option>
-            <option value="2023" selected>2023/24</option>
-            <option value="2022">2022/23</option>
-            <option value="2021">2021/22</option>
-          </select>
+          <button id="searchBtn" class="btn-primary">🔍</button>
         </div>
-        <!-- League selector: required by API-Football free tier for name searches -->
-        <select id="leagueSelect" class="league-select" title="League (required for player name search)">
-          <option value="39">🏴󠁧󠁢󠁥󠁮󠁧󠁿 Premier League</option>
-          <option value="140">🇪🇸 La Liga</option>
-          <option value="135">🇮🇹 Serie A</option>
-          <option value="78">🇩🇪 Bundesliga</option>
-          <option value="61">🇫🇷 Ligue 1</option>
-          <option value="2">🏆 Champions League</option>
-          <option value="3">🥈 Europa League</option>
-          <option value="253">🇺🇸 MLS</option>
-          <option value="307">🇸🇦 Saudi Pro League</option>
-          <option value="88">🇳🇱 Eredivisie</option>
-          <option value="94">🇵🇹 Primeira Liga</option>
-          <option value="203">🇹🇷 Süper Lig</option>
-        </select>
-        <div class="league-note" id="leagueNote">ℹ️ Free tier requires a league for name searches</div>
-        <button id="searchBtn" class="btn-primary search-btn">🔍 Search</button>
+        <div class="search-hint">Enter the player's full name as it appears on their card</div>
+      </div>
+
+      <!-- By Team -->
+      <div class="search-bar-container hidden" id="paneByTeam">
+        <div class="search-row">
+          <input
+            type="text"
+            id="teamInput"
+            class="search-input"
+            placeholder="e.g. Liverpool, Real Madrid"
+            maxlength="60"
+          />
+          <button id="teamSearchBtn" class="btn-primary">🔍</button>
+        </div>
+        <div class="search-hint">Use the club's official name</div>
+      </div>
+
+      <!-- Top Rated -->
+      <div class="search-bar-container hidden" id="paneByRank">
+        <div class="search-row">
+          <label class="rank-label" for="rankFrom">Ranks</label>
+          <input type="number" id="rankFrom" class="rank-input" value="1"  min="1" max="500" />
+          <span class="rank-sep">–</span>
+          <input type="number" id="rankTo"   class="rank-input" value="20" min="1" max="500" />
+          <button id="rankSearchBtn" class="btn-primary">Load</button>
+        </div>
+        <div class="search-hint">Fetches multiple players in parallel</div>
       </div>
 
       <div class="search-status" id="searchStatus"></div>
@@ -177,7 +161,6 @@
 
   </main>
 
-  <script src="config.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

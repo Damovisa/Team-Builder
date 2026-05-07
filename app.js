@@ -1,24 +1,29 @@
 /* ================================================================
-   FUT Team Builder – app.js
+   FC26 Team Builder – app.js
+   API: https://api.msmc.cc/api/fc26  (no auth required)
    ================================================================ */
 
 'use strict';
 
 // ────────────────────────────────────────────────────────────────
-// CONFIG  (config.js is loaded before this file)
+// API
 // ────────────────────────────────────────────────────────────────
-let apiKey =
-  (typeof RAPIDAPI_CONFIG !== 'undefined' &&
-   RAPIDAPI_CONFIG.RAPIDAPI_KEY !== 'YOUR_RAPIDAPI_KEY_HERE')
-    ? RAPIDAPI_CONFIG.RAPIDAPI_KEY
-    : (localStorage.getItem('fut_api_key') || '');
+const API_BASE = 'https://api.msmc.cc/api/fc26';
 
-const API_HOST = 'api-football-v1.p.rapidapi.com';
-const API_BASE = 'https://api-football-v1.p.rapidapi.com/v3';
+async function apiFetch(path) {
+  const res = await fetch(`${API_BASE}${path}`);
+  if (!res.ok) throw new Error(`Request failed (${res.status})`);
+  const data = await res.json();
+  if (data && data.error) throw new Error(data.error);
+  return data;
+}
+
+const fetchByName  = (name)  => apiFetch(`/player/name/${encodeURIComponent(name)}`);
+const fetchByTeam  = (team)  => apiFetch(`/team/${encodeURIComponent(team)}`);
+const fetchByRank  = (rank)  => apiFetch(`/player/rank/${rank}`);
 
 // ────────────────────────────────────────────────────────────────
-// FORMATIONS  –  x/y as % of pitch width/height (0,0 = top-left)
-//               Attack is towards y=0, GK at y≈88
+// FORMATIONS  –  x/y as % of pitch (0,0 = top-left, attack at top)
 // ────────────────────────────────────────────────────────────────
 const FORMATIONS = {
   '4-3-3': [
@@ -63,225 +68,82 @@ const FORMATIONS = {
 // ────────────────────────────────────────────────────────────────
 // TEAM STATE
 // ────────────────────────────────────────────────────────────────
-const team = new Array(11).fill(null);   // each slot: null or PlayerInfo
+const team = new Array(11).fill(null);   // each slot: null or player object
 let currentFormation = '4-3-3';
-let selectedSlot     = null;             // index or null
+let selectedSlot     = null;
 let searchType       = 'name';
 let isSearching      = false;
 
 // ────────────────────────────────────────────────────────────────
-// STAT CALCULATION
+// HELPERS
 // ────────────────────────────────────────────────────────────────
-
-/** Cheap deterministic variation per player id + salt — avoids Math.random() */
-function pseudoVar(playerId, salt, range = 10) {
-  const n = (Math.abs(playerId * 2654435761 + salt * 1234567891)) & 0x7fffffff;
-  return (n % (range * 2 + 1)) - range;
-}
-
-function calcStats(player, stats) {
-  const pid          = player.id || 0;
-  const pos          = (stats.games?.position || 'Midfielder').toLowerCase();
-  const appearances  = Math.max(stats.games?.appearences || 1, 1);
-  const ratingRaw    = parseFloat(stats.games?.rating);
-
-  // Overall: map API rating (~5–9.5) → FUT range (50–99)
-  const overall = ratingRaw && ratingRaw > 0
-    ? Math.round(Math.max(50, Math.min(99, ((ratingRaw - 5.0) / 4.5) * 49 + 50)))
-    : 63;
-
-  const goalsPerGame   = (stats.goals?.total   || 0) / appearances;
-  const assistsPerGame = (stats.goals?.assists  || 0) / appearances;
-  const passAcc        = parseFloat(stats.passes?.accuracy) || 58;
-  const keyPassPG      = (stats.passes?.key     || 0) / appearances;
-  const dribAttempts   = Math.max(stats.dribbles?.attempts || 1, 1);
-  const dribRate       = (stats.dribbles?.success || 0) / dribAttempts;
-  const shotTotal      = Math.max(stats.shots?.total || 1, 1);
-  const shotOnRate     = (stats.shots?.on || 0) / shotTotal;
-  const tacklesPG      = (stats.tackles?.total  || 0) / appearances;
-
-  const isGK  = pos.includes('goal') || pos.includes('keeper');
-  const isATT = pos.includes('attack') || pos.includes('forward') || pos.includes('winger');
-  const isDEF = pos.includes('defend') || pos.includes('back');
-  // Midfielder is the default
-
-  let pace, shooting, passing, dribbling, defending, physicality;
-
-  if (isGK) {
-    pace        = Math.round(42 + overall * 0.08 + pseudoVar(pid, 1, 6));
-    shooting    = Math.round(14 + pseudoVar(pid, 2, 5));
-    passing     = Math.round(passAcc * 0.68 + pseudoVar(pid, 3, 5));
-    dribbling   = Math.round(42 + pseudoVar(pid, 4, 6));
-    defending   = Math.round(overall * 0.93 + pseudoVar(pid, 5, 5));
-    physicality = Math.round(overall * 0.82 + pseudoVar(pid, 6, 5));
-  } else if (isATT) {
-    pace        = Math.round(55 + dribRate * 22 + pseudoVar(pid, 1, 8));
-    shooting    = Math.round(50 + goalsPerGame * 55 + shotOnRate * 13 + pseudoVar(pid, 2, 8));
-    passing     = Math.round(passAcc * 0.78 + assistsPerGame * 18 + pseudoVar(pid, 3, 7));
-    dribbling   = Math.round(55 + dribRate * 33 + pseudoVar(pid, 4, 8));
-    defending   = Math.round(overall * 0.32 + 20 + pseudoVar(pid, 5, 6));
-    physicality = Math.round(50 + overall * 0.28 + pseudoVar(pid, 6, 7));
-  } else if (isDEF) {
-    pace        = Math.round(50 + dribRate * 14 + pseudoVar(pid, 1, 8));
-    shooting    = Math.round(28 + goalsPerGame * 28 + pseudoVar(pid, 2, 7));
-    passing     = Math.round(passAcc * 0.76 + pseudoVar(pid, 3, 7));
-    dribbling   = Math.round(43 + dribRate * 20 + pseudoVar(pid, 4, 7));
-    defending   = Math.round(58 + tacklesPG * 7 + overall * 0.28 + pseudoVar(pid, 5, 7));
-    physicality = Math.round(56 + overall * 0.3 + pseudoVar(pid, 6, 7));
-  } else {
-    // Midfielder
-    pace        = Math.round(52 + dribRate * 17 + pseudoVar(pid, 1, 8));
-    shooting    = Math.round(40 + goalsPerGame * 43 + pseudoVar(pid, 2, 8));
-    passing     = Math.round(passAcc * 0.83 + keyPassPG * 11 + pseudoVar(pid, 3, 7));
-    dribbling   = Math.round(50 + dribRate * 26 + pseudoVar(pid, 4, 8));
-    defending   = Math.round(43 + tacklesPG * 7 + overall * 0.24 + pseudoVar(pid, 5, 7));
-    physicality = Math.round(50 + overall * 0.29 + pseudoVar(pid, 6, 7));
-  }
-
-  const clamp = (v, lo = 40, hi = 99) => Math.max(lo, Math.min(hi, v));
-  return {
-    overall:     clamp(overall, 50, 99),
-    pace:        clamp(pace),
-    shooting:    clamp(shooting),
-    passing:     clamp(passing),
-    dribbling:   clamp(dribbling),
-    defending:   clamp(defending),
-    physicality: clamp(physicality),
-  };
-}
-
-function cardRarity(overall) {
-  if (overall >= 85) return 'special';
-  if (overall >= 75) return 'gold';
-  if (overall >= 65) return 'silver';
-  return 'bronze';
-}
-
-function posShort(posStr) {
-  const p = (posStr || '').toLowerCase();
-  if (p.includes('goal') || p.includes('keeper')) return 'GK';
-  if (p.includes('attack') || p.includes('forward')) return 'ST';
-  if (p.includes('defend') || p.includes('back')) return 'CB';
-  return 'CM';
+function esc(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
 function shortName(fullName) {
-  const parts = fullName.trim().split(/\s+/);
+  const parts = String(fullName).trim().split(/\s+/);
   return parts.length === 1 ? fullName : parts[parts.length - 1];
 }
 
-function esc(str) {
-  return String(str)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
-}
+const POS_GROUP = {
+  GK: 'GK',
+  LB: 'DEF', RB: 'DEF', CB: 'DEF', LWB: 'DEF', RWB: 'DEF', WB: 'DEF',
+  LM: 'MID', RM: 'MID', CM: 'MID', CDM: 'MID', CAM: 'MID', DM: 'MID', AM: 'MID',
+  LW: 'FWD', RW: 'FWD', ST: 'FWD', CF: 'FWD', SS: 'FWD',
+};
+function posGroup(pos) { return POS_GROUP[pos] || 'MID'; }
 
 // ────────────────────────────────────────────────────────────────
-// API HELPERS
+// RENDER: SEARCH RESULT CARD
+// Each card shows the real EA FC26 card image + supplementary info
 // ────────────────────────────────────────────────────────────────
-
-async function apiFetch(path) {
-  if (!apiKey) throw new Error('No API key set. Click "🔑 API Key" to add yours.');
-  const res = await fetch(`${API_BASE}${path}`, {
-    headers: {
-      'X-RapidAPI-Key':  apiKey,
-      'X-RapidAPI-Host': API_HOST,
-    },
-  });
-  if (res.status === 403) throw new Error('Invalid API key or subscription. Check your RapidAPI dashboard.');
-  if (res.status === 429) throw new Error('Rate limit hit. Please wait a moment then try again.');
-  if (!res.ok) throw new Error(`API error ${res.status}`);
-  return res.json();
-}
-
-const searchPlayers = (query, league, season) =>
-  apiFetch(`/players?search=${encodeURIComponent(query)}&league=${league}&season=${season}`);
-
-const searchTeams = (query) =>
-  apiFetch(`/teams?search=${encodeURIComponent(query)}`);
-
-const getTeamPlayers = (teamId, season) =>
-  apiFetch(`/players?team=${teamId}&season=${season}`);
-
-// ────────────────────────────────────────────────────────────────
-// RENDER: PLAYER CARD
-// ────────────────────────────────────────────────────────────────
-
-function buildPlayerCard(playerData, inTeam = false) {
-  const { player, statistics } = playerData;
-  const s0       = statistics?.[0] || {};
-  const computed = calcStats(player, s0);
-  const rarity   = cardRarity(computed.overall);
-  const position = posShort(s0.games?.position);
-  const teamName = s0.team?.name   || '';
-  const league   = s0.league?.name || '';
-
-  const accentColors = { gold: '#d4af37', silver: '#9baab5', bronze: '#c87f3c', special: '#4a90d9' };
-  const accent = accentColors[rarity];
-
-  const photoHtml = player.photo
-    ? `<img class="player-photo" src="${esc(player.photo)}" alt="${esc(player.name)}"
-            onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
-    : '';
-
+function buildResultCard(player, inTeam = false) {
   const card = document.createElement('div');
-  card.className = `player-card card-${rarity}`;
-  card.dataset.playerId = player.id;
+  card.className = `result-card${inTeam ? ' in-team' : ''}`;
+  card.dataset.playerId = player.ID;
+
+  const stats = ['PAC','SHO','PAS','DRI','DEF','PHY']
+    .map(k => `<div class="rs-stat"><span class="rs-val">${esc(player[k] ?? '—')}</span><span class="rs-lbl">${k}</span></div>`)
+    .join('');
 
   card.innerHTML = `
-    ${inTeam ? '<div class="card-in-team-badge">✓ In Team</div>' : ''}
-    <div class="card-img-col">
-      <div class="card-ovr-block">
-        <span class="card-ovr">${computed.overall}</span>
-        <span class="card-pos">${esc(position)}</span>
-      </div>
-      ${photoHtml}
-      <div class="player-photo-placeholder" style="${player.photo ? 'display:none' : ''}">👤</div>
+    ${inTeam ? '<div class="result-in-team-badge">✓ In Team</div>' : ''}
+    <div class="result-card-img-wrap">
+      <img class="result-card-img" src="${esc(player.card)}" alt="${esc(player.Name)} card"
+           onerror="this.src='';this.closest('.result-card-img-wrap').innerHTML='<div class=card-img-fallback>${esc(player.OVR)}</div>'">
     </div>
-    <div class="card-info-col">
-      <div>
-        <div class="card-name" title="${esc(player.name)}">${esc(player.name)}</div>
-        <div class="card-meta">${esc(teamName)}${teamName && league ? ' · ' : ''}${esc(league)}</div>
-      </div>
-      <div class="card-stats-grid">
-        <div class="cstat"><span class="cstat-val">${computed.pace}</span><span class="cstat-lbl"> PAC</span></div>
-        <div class="cstat"><span class="cstat-val">${computed.shooting}</span><span class="cstat-lbl"> SHO</span></div>
-        <div class="cstat"><span class="cstat-val">${computed.passing}</span><span class="cstat-lbl"> PAS</span></div>
-        <div class="cstat"><span class="cstat-val">${computed.dribbling}</span><span class="cstat-lbl"> DRI</span></div>
-        <div class="cstat"><span class="cstat-val">${computed.defending}</span><span class="cstat-lbl"> DEF</span></div>
-        <div class="cstat"><span class="cstat-val">${computed.physicality}</span><span class="cstat-lbl"> PHY</span></div>
-      </div>
+    <div class="result-card-info">
+      <div class="rc-name" title="${esc(player.Name)}">${esc(player.Name)}</div>
+      <div class="rc-meta">${esc(player.Team)} · ${esc(player.League)}</div>
+      <div class="rc-meta">${esc(player.Nation)} · Age ${esc(player.Age)}</div>
+      <div class="rc-stats">${stats}</div>
     </div>
-    <button class="card-add-btn${inTeam ? ' added' : ''}" title="${inTeam ? 'Already in team' : 'Add to team'}"
-            aria-label="${inTeam ? 'Player already in team' : 'Add ' + player.name + ' to team'}">
+    <button class="rc-add-btn${inTeam ? ' added' : ''}" title="${inTeam ? 'Already in team' : 'Add to team'}">
       ${inTeam ? '✓' : '+'}
     </button>`;
 
-  // Store data directly on element for retrieval
-  card._futData = { player, statistics: statistics || [], computed, position };
+  card._player = player;
 
   if (!inTeam) {
-    const addFn = (e) => { e.stopPropagation(); addToTeam(card._futData); };
-    card.querySelector('.card-add-btn').addEventListener('click', addFn);
+    const addFn = (e) => { e.stopPropagation(); addToTeam(card._player); };
+    card.querySelector('.rc-add-btn').addEventListener('click', addFn);
     card.addEventListener('click', addFn);
   }
-
   return card;
 }
 
 // ────────────────────────────────────────────────────────────────
 // RENDER: PITCH
 // ────────────────────────────────────────────────────────────────
-
 function renderPitch() {
   const container = document.getElementById('slotsContainer');
-  const formation  = FORMATIONS[currentFormation];
   container.innerHTML = '';
 
-  formation.forEach((slotDef, idx) => {
-    const player = team[idx];
+  FORMATIONS[currentFormation].forEach((slotDef, idx) => {
+    const player     = team[idx];
     const isFilled   = !!player;
     const isSelected = selectedSlot === idx;
 
@@ -289,30 +151,20 @@ function renderPitch() {
     slotEl.className = `pitch-slot${isFilled ? ' filled' : ''}${isSelected ? ' selected' : ''}`;
     slotEl.style.left = `${slotDef.x}%`;
     slotEl.style.top  = `${slotDef.y}%`;
-    slotEl.dataset.idx = idx;
 
     if (isFilled) {
-      const { computed, player: p } = player;
-      const accent = { gold: '#d4af37', silver: '#9baab5', bronze: '#c87f3c', special: '#4a90d9' }[cardRarity(computed.overall)];
-      slotEl.style.setProperty('--slot-accent', accent + '99');
-
-      const photoHtml = p.photo
-        ? `<img class="slot-photo" src="${esc(p.photo)}" alt="${esc(p.name)}"
-                onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">`
-        : '';
-
       slotEl.innerHTML = `
-        <div class="slot-ring" style="border-color:${accent}88; position:relative">
-          ${photoHtml}
-          <div class="slot-photo-placeholder" style="${p.photo ? 'display:none' : ''}">👤</div>
-          <div class="slot-rating" style="background:${accent};color:${accent === '#4a90d9' ? '#fff' : '#1a1200'}">${computed.overall}</div>
-          <button class="slot-remove-btn" data-idx="${idx}" aria-label="Remove ${esc(p.name)}">✕</button>
+        <div class="slot-card-wrap">
+          <img class="slot-card-img" src="${esc(player.card)}" alt="${esc(player.Name)}"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="slot-card-fallback" style="display:none">${esc(player.OVR)}</div>
+          <button class="slot-remove-btn" data-idx="${idx}" aria-label="Remove ${esc(player.Name)}">✕</button>
         </div>
-        <div class="slot-name">${esc(shortName(p.name))}</div>
-        <div class="slot-pos-label" style="color:${accent}">${esc(slotDef.pos)}</div>`;
+        <div class="slot-name">${esc(shortName(player.Name))}</div>
+        <div class="slot-pos-label">${esc(slotDef.pos)}</div>`;
     } else {
       slotEl.innerHTML = `
-        <div class="slot-ring">
+        <div class="slot-empty-ring">
           <span class="slot-pos-empty">${esc(slotDef.pos)}</span>
         </div>
         <div class="slot-label-empty">Empty</div>`;
@@ -335,55 +187,36 @@ function renderPitch() {
 // ────────────────────────────────────────────────────────────────
 // TEAM MANAGEMENT
 // ────────────────────────────────────────────────────────────────
-
-const POS_GROUP = {
-  GK:  'GK',
-  LB:  'DEF', RB: 'DEF', CB: 'DEF', LWB: 'DEF', RWB: 'DEF', SW: 'DEF',
-  LM:  'MID', RM: 'MID', CM: 'MID', CDM: 'MID', CAM: 'MID', DM: 'MID', AM: 'MID',
-  LW:  'FWD', RW: 'FWD', ST: 'FWD', CF: 'FWD', SS: 'FWD',
-};
-
-function slotGroup(slotPos) { return POS_GROUP[slotPos] || 'MID'; }
-function playerGroup(posShortStr) { return POS_GROUP[posShortStr] || 'MID'; }
-
-function addToTeam(playerInfo) {
-  // If a slot is manually selected, assign there
+function addToTeam(player) {
   if (selectedSlot !== null) {
-    team[selectedSlot] = playerInfo;
-    const pos = FORMATIONS[currentFormation][selectedSlot].pos;
-    showToast(`${playerInfo.player.name} → ${pos}`);
+    team[selectedSlot] = player;
+    showToast(`${player.Name} → ${FORMATIONS[currentFormation][selectedSlot].pos}`);
     selectedSlot = null;
     afterTeamChange();
     return;
   }
 
-  // Auto-assign: prefer matching position group
-  const group = playerGroup(playerInfo.position);
+  // Auto-assign: prefer a slot matching the player's position group
+  const group = posGroup(player.Position);
   const formation = FORMATIONS[currentFormation];
   let target = -1;
 
   for (let i = 0; i < 11; i++) {
-    if (!team[i] && slotGroup(formation[i].pos) === group) { target = i; break; }
-  }
-  // Fallback: first empty slot
-  if (target === -1) {
-    for (let i = 0; i < 11; i++) {
-      if (!team[i]) { target = i; break; }
-    }
+    if (!team[i] && posGroup(formation[i].pos) === group) { target = i; break; }
   }
   if (target === -1) {
-    showToast('Team is full! Remove a player first.', 'error');
-    return;
+    for (let i = 0; i < 11; i++) { if (!team[i]) { target = i; break; } }
   }
+  if (target === -1) { showToast('Team is full! Remove a player first.', 'error'); return; }
 
-  team[target] = playerInfo;
-  showToast(`${playerInfo.player.name} → ${formation[target].pos}`);
+  team[target] = player;
+  showToast(`${player.Name} → ${formation[target].pos}`);
   afterTeamChange();
 }
 
 function removeFromTeam(idx) {
   if (team[idx]) {
-    showToast(`${team[idx].player.name} removed`);
+    showToast(`${team[idx].Name} removed`);
     team[idx] = null;
     afterTeamChange();
   }
@@ -403,7 +236,7 @@ function afterTeamChange() {
 }
 
 // ────────────────────────────────────────────────────────────────
-// SLOT HINT  (injected between search bar and status)
+// SLOT HINT
 // ────────────────────────────────────────────────────────────────
 function renderSlotHint() {
   let hint = document.getElementById('slotHint');
@@ -415,7 +248,7 @@ function renderSlotHint() {
   }
   if (selectedSlot !== null) {
     const pos = FORMATIONS[currentFormation][selectedSlot].pos;
-    hint.textContent = `📍 Slot selected: ${pos} — now click a player to assign`;
+    hint.textContent = `📍 Slot selected: ${pos} — click a player to assign`;
     hint.hidden = false;
   } else {
     hint.hidden = true;
@@ -430,170 +263,142 @@ function updateTeamStats() {
   const n = players.length;
   document.getElementById('statPlayers').textContent = `${n}/11`;
 
-  const avg = (key) => n ? Math.round(players.reduce((s, p) => s + p.computed[key], 0) / n) : '—';
-  document.getElementById('statRating').textContent     = avg('overall');
-  document.getElementById('statPace').textContent       = avg('pace');
-  document.getElementById('statShooting').textContent   = avg('shooting');
-  document.getElementById('statPassing').textContent    = avg('passing');
-  document.getElementById('statDribbling').textContent  = avg('dribbling');
-  document.getElementById('statDefending').textContent  = avg('defending');
-  document.getElementById('statPhysicality').textContent = avg('physicality');
+  const avg = (key) => n
+    ? Math.round(players.reduce((s, p) => s + (parseInt(p[key]) || 0), 0) / n)
+    : '—';
+
+  document.getElementById('statRating').textContent     = avg('OVR');
+  document.getElementById('statPace').textContent       = avg('PAC');
+  document.getElementById('statShooting').textContent   = avg('SHO');
+  document.getElementById('statPassing').textContent    = avg('PAS');
+  document.getElementById('statDribbling').textContent  = avg('DRI');
+  document.getElementById('statDefending').textContent  = avg('DEF');
+  document.getElementById('statPhysicality').textContent = avg('PHY');
 }
 
 // ────────────────────────────────────────────────────────────────
-// CARD STATE REFRESH  (in-team badges & button state)
+// REFRESH IN-TEAM BADGES ON RESULT CARDS
 // ────────────────────────────────────────────────────────────────
 function refreshCardStates() {
-  const inTeamIds = new Set(team.filter(Boolean).map(p => p.player.id));
+  const inTeamIds = new Set(team.filter(Boolean).map(p => p.ID));
 
-  document.querySelectorAll('.player-card').forEach(card => {
-    const pid = parseInt(card.dataset.playerId);
-    const addBtn = card.querySelector('.card-add-btn');
-    const alreadyIn = inTeamIds.has(pid);
+  document.querySelectorAll('.result-card').forEach(card => {
+    const alreadyIn = inTeamIds.has(card.dataset.playerId);
+    const addBtn = card.querySelector('.rc-add-btn');
 
     if (alreadyIn) {
-      if (!card.querySelector('.card-in-team-badge')) {
-        const badge = document.createElement('div');
-        badge.className = 'card-in-team-badge';
-        badge.textContent = '✓ In Team';
-        card.prepend(badge);
+      if (!card.querySelector('.result-in-team-badge')) {
+        const b = document.createElement('div');
+        b.className = 'result-in-team-badge';
+        b.textContent = '✓ In Team';
+        card.prepend(b);
       }
       if (addBtn) { addBtn.classList.add('added'); addBtn.textContent = '✓'; }
     } else {
-      card.querySelector('.card-in-team-badge')?.remove();
+      card.querySelector('.result-in-team-badge')?.remove();
       if (addBtn) { addBtn.classList.remove('added'); addBtn.textContent = '+'; }
     }
   });
 }
 
 // ────────────────────────────────────────────────────────────────
-// SEARCH
+// SEARCH HANDLERS
 // ────────────────────────────────────────────────────────────────
-
-async function doSearch() {
-  const query  = document.getElementById('searchInput').value.trim();
-  const season = document.getElementById('seasonSelect').value;
-  const league = document.getElementById('leagueSelect').value;
-
-  if (!apiKey) {
-    document.getElementById('apiKeyModal').hidden = false;
-    return;
-  }
-  if (query.length < 3) {
-    document.getElementById('searchStatus').textContent = '⚠️ Enter at least 3 characters';
-    return;
-  }
+async function doNameSearch() {
+  const name = document.getElementById('searchInput').value.trim();
+  if (!name) { setStatus('⚠️ Enter a player name'); return; }
   if (isSearching) return;
   isSearching = true;
 
-  const resultsEl = document.getElementById('searchResults');
-  const statusEl  = document.getElementById('searchStatus');
-
-  resultsEl.innerHTML = `<div class="empty-state"><div class="spinner"></div><p>Searching…</p></div>`;
-  statusEl.textContent = '';
-
+  showLoading();
   try {
-    if (searchType === 'name') {
-      const data = await searchPlayers(query, league, season);
-      renderPlayerResults(data);
-    } else {
-      const data = await searchTeams(query);
-      renderTeamResults(data, season);
-    }
+    const player = await fetchByName(name);
+    renderSinglePlayer(player);
   } catch (err) {
-    resultsEl.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">⚠️</div>
-        <p style="color:#e06060">${esc(err.message)}</p>
-      </div>`;
-    statusEl.textContent = '';
+    showError(err.message);
   } finally {
     isSearching = false;
   }
 }
 
-function renderPlayerResults(data) {
-  const resultsEl = document.getElementById('searchResults');
-  const statusEl  = document.getElementById('searchStatus');
-  const results   = data?.response || [];
+async function doTeamSearch() {
+  const teamName = document.getElementById('teamInput').value.trim();
+  if (!teamName) { setStatus('⚠️ Enter a team name'); return; }
+  if (isSearching) return;
+  isSearching = true;
 
-  if (!results.length) {
-    resultsEl.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">😕</div>
-        <p>No players found.<br>Try a different name or season.</p>
-      </div>`;
-    statusEl.textContent = '';
-    return;
-  }
-
-  // Filter out entries without statistics (can't compute meaningful card)
-  const withStats = results.filter(r => r.statistics?.length);
-
-  statusEl.textContent = `${withStats.length} player${withStats.length !== 1 ? 's' : ''} found`;
-  resultsEl.innerHTML = '';
-
-  const inTeamIds = new Set(team.filter(Boolean).map(p => p.player.id));
-  withStats.forEach(pd => resultsEl.appendChild(buildPlayerCard(pd, inTeamIds.has(pd.player.id))));
-
-  if (!resultsEl.children.length) {
-    resultsEl.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">😕</div>
-        <p>No stats available for this season.<br>Try a different season.</p>
-      </div>`;
+  showLoading();
+  try {
+    const players = await fetchByTeam(teamName);
+    if (!Array.isArray(players) || !players.length) throw new Error('No players found for that team');
+    renderPlayerList(players);
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    isSearching = false;
   }
 }
 
-function renderTeamResults(data, season) {
-  const resultsEl = document.getElementById('searchResults');
-  const statusEl  = document.getElementById('searchStatus');
-  const teams     = data?.response || [];
+async function doRankSearch() {
+  const from = Math.max(1, parseInt(document.getElementById('rankFrom').value) || 1);
+  const to   = Math.min(500, parseInt(document.getElementById('rankTo').value)  || 20);
+  if (from > to) { setStatus('⚠️ "From" rank must be ≤ "To" rank'); return; }
+  if (isSearching) return;
+  isSearching = true;
 
-  if (!teams.length) {
-    resultsEl.innerHTML = `<div class="empty-state"><div class="empty-icon">😕</div><p>No teams found.</p></div>`;
-    return;
+  const count = to - from + 1;
+  showLoading(`Loading ${count} player${count !== 1 ? 's' : ''}…`);
+  try {
+    const ranks   = Array.from({ length: count }, (_, i) => from + i);
+    const results = await Promise.all(ranks.map(r => fetchByRank(r).catch(() => null)));
+    const players = results.filter(Boolean);
+    if (!players.length) throw new Error('No players found in that rank range');
+    renderPlayerList(players);
+  } catch (err) {
+    showError(err.message);
+  } finally {
+    isSearching = false;
   }
-
-  statusEl.textContent = `${teams.length} team${teams.length !== 1 ? 's' : ''} found — click to load players`;
-  resultsEl.innerHTML = '';
-
-  const list = document.createElement('div');
-  list.className = 'team-list';
-
-  teams.forEach(({ team: t }) => {
-    const item = document.createElement('div');
-    item.className = 'team-item';
-    item.innerHTML = `
-      ${t.logo
-        ? `<img class="team-logo" src="${esc(t.logo)}" alt="${esc(t.name)}" onerror="this.outerHTML='<span class=team-logo-placeholder>⚽</span>'">`
-        : '<span class="team-logo-placeholder">⚽</span>'}
-      <div>
-        <div class="team-item-name">${esc(t.name)}</div>
-        <div class="team-item-country">${esc(t.country || '')}</div>
-      </div>
-      <span class="team-item-arrow">→</span>`;
-
-    item.addEventListener('click', async () => {
-      statusEl.textContent = `Loading ${t.name}…`;
-      resultsEl.innerHTML = `<div class="empty-state"><div class="spinner"></div><p>Loading players…</p></div>`;
-      try {
-        const pData = await getTeamPlayers(t.id, season);
-        renderPlayerResults(pData);
-      } catch (err) {
-        resultsEl.innerHTML = `<div class="empty-state"><div class="empty-icon">⚠️</div><p style="color:#e06060">${esc(err.message)}</p></div>`;
-      }
-    });
-
-    list.appendChild(item);
-  });
-
-  resultsEl.appendChild(list);
 }
 
 // ────────────────────────────────────────────────────────────────
-// TOAST
+// RENDER RESULTS
 // ────────────────────────────────────────────────────────────────
+function renderSinglePlayer(player) {
+  const resultsEl = document.getElementById('searchResults');
+  setStatus('1 player found');
+  resultsEl.innerHTML = '';
+  const inTeam = team.filter(Boolean).some(p => p.ID === player.ID);
+  resultsEl.appendChild(buildResultCard(player, inTeam));
+}
+
+function renderPlayerList(players) {
+  const resultsEl = document.getElementById('searchResults');
+  const inTeamIds = new Set(team.filter(Boolean).map(p => p.ID));
+  setStatus(`${players.length} player${players.length !== 1 ? 's' : ''} found`);
+  resultsEl.innerHTML = '';
+  players.forEach(p => resultsEl.appendChild(buildResultCard(p, inTeamIds.has(p.ID))));
+}
+
+// ────────────────────────────────────────────────────────────────
+// UI HELPERS
+// ────────────────────────────────────────────────────────────────
+function showLoading(msg = 'Searching…') {
+  document.getElementById('searchResults').innerHTML =
+    `<div class="empty-state"><div class="spinner"></div><p>${msg}</p></div>`;
+  setStatus('');
+}
+
+function showError(msg) {
+  document.getElementById('searchResults').innerHTML =
+    `<div class="empty-state"><div class="empty-icon">⚠️</div><p style="color:#e06060">${esc(msg)}</p></div>`;
+  setStatus('');
+}
+
+function setStatus(msg) {
+  document.getElementById('searchStatus').textContent = msg;
+}
+
 function showToast(message, type = 'success') {
   document.querySelector('.toast')?.remove();
   const t = document.createElement('div');
@@ -604,38 +409,33 @@ function showToast(message, type = 'success') {
 }
 
 // ────────────────────────────────────────────────────────────────
-// API KEY UI
-// ────────────────────────────────────────────────────────────────
-function updateBanner() {
-  document.getElementById('apiBanner').classList.toggle('hidden', !!apiKey);
-}
-
-// ────────────────────────────────────────────────────────────────
 // INIT
 // ────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   renderPitch();
   updateTeamStats();
-  updateBanner();
 
-  // Search
-  document.getElementById('searchBtn').addEventListener('click', doSearch);
-  document.getElementById('searchInput').addEventListener('keydown', e => e.key === 'Enter' && doSearch());
-
-  // Search type tabs
+  // Tab switching
   document.querySelectorAll('.tab-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       searchType = btn.dataset.type;
-      const isByName = searchType === 'name';
-      document.getElementById('searchInput').placeholder =
-        isByName ? 'Search players (min 3 chars)…' : 'Search teams…';
-      // League selector is only relevant for name searches (team search uses /players?team=id)
-      document.getElementById('leagueSelect').style.display = isByName ? '' : 'none';
-      document.getElementById('leagueNote').style.display   = isByName ? '' : 'none';
+
+      document.getElementById('paneByName').classList.toggle('hidden', searchType !== 'name');
+      document.getElementById('paneByTeam').classList.toggle('hidden', searchType !== 'team');
+      document.getElementById('paneByRank').classList.toggle('hidden', searchType !== 'rank');
     });
   });
+
+  // Search triggers
+  document.getElementById('searchBtn').addEventListener('click', doNameSearch);
+  document.getElementById('searchInput').addEventListener('keydown', e => e.key === 'Enter' && doNameSearch());
+
+  document.getElementById('teamSearchBtn').addEventListener('click', doTeamSearch);
+  document.getElementById('teamInput').addEventListener('keydown', e => e.key === 'Enter' && doTeamSearch());
+
+  document.getElementById('rankSearchBtn').addEventListener('click', doRankSearch);
 
   // Formation
   document.getElementById('formationSelect').addEventListener('change', e => {
@@ -652,41 +452,5 @@ document.addEventListener('DOMContentLoaded', () => {
       selectedSlot = null;
       afterTeamChange();
     }
-  });
-
-  // API Key modal – open
-  document.getElementById('apiKeyBtn').addEventListener('click', () => {
-    document.getElementById('apiKeyInput').value = apiKey;
-    document.getElementById('apiKeyModal').hidden = false;
-  });
-  document.getElementById('setBannerKeyBtn')?.addEventListener('click', () => {
-    document.getElementById('apiKeyInput').value = apiKey;
-    document.getElementById('apiKeyModal').hidden = false;
-  });
-
-  // API Key modal – save
-  document.getElementById('saveApiKeyBtn').addEventListener('click', () => {
-    const key = document.getElementById('apiKeyInput').value.trim();
-    if (key) {
-      apiKey = key;
-      localStorage.setItem('fut_api_key', key);
-      document.getElementById('apiKeyModal').hidden = true;
-      updateBanner();
-      showToast('API key saved ✓');
-    }
-  });
-
-  // API Key modal – close
-  document.getElementById('closeModalBtn').addEventListener('click', () => {
-    document.getElementById('apiKeyModal').hidden = true;
-  });
-  document.getElementById('apiKeyModal').addEventListener('click', e => {
-    if (e.target === document.getElementById('apiKeyModal'))
-      document.getElementById('apiKeyModal').hidden = true;
-  });
-
-  // Allow Enter in API key input
-  document.getElementById('apiKeyInput').addEventListener('keydown', e => {
-    if (e.key === 'Enter') document.getElementById('saveApiKeyBtn').click();
   });
 });

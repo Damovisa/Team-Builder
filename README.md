@@ -1,13 +1,15 @@
-# ⚽ FUT Team Builder
+# ⚽ FC26 Team Builder
 
-A FIFA FUT-style football team builder powered by the [API-Football](https://www.api-football.com/) free tier via RapidAPI. Search for real players, view them as FUT-style cards, and assemble an 11-player squad on a visual pitch.
+A football team builder powered by FC26 player data. Search for real EA Sports FC 26 players, see their actual in-game cards, and assemble an 11-player squad on a visual pitch.
+
+**No sign-up or API key required** — just open `index.html` and start building.
 
 ---
 
 ## Features
 
-- 🔍 **Search** players by name or by team
-- 🃏 **FUT-style cards** — gold / silver / bronze / special — with photo, overall rating, and six stats: PAC · SHO · PAS · DRI · DEF · PHY
+- 🃏 **Real EA FC26 card images** for every player
+- 🔍 **Three ways to find players** — by exact name, by club, or by global rank
 - 🏟️ **Visual pitch** — top-down view with pitch markings
 - 📋 **5 formations** — 4-3-3 · 4-4-2 · 3-5-2 · 4-2-3-1 · 5-3-2
 - 🎯 **Smart auto-assign** — players are placed in the best-matching position slot
@@ -18,47 +20,9 @@ A FIFA FUT-style football team builder powered by the [API-Football](https://www
 
 ## Quick Start
 
-### 1 · Get a free RapidAPI key for API-Football
+1. Open `index.html` in any modern browser — no server, no setup needed.
 
-1. Sign up (free) at [https://rapidapi.com](https://rapidapi.com)
-2. Search for **API-Football** and subscribe to the **Basic (free) plan**
-   - Direct link: <https://rapidapi.com/api-sports/api/api-football>
-3. Copy your `X-RapidAPI-Key` from the **API** → **Authorization** tab
-
-> The free tier gives you **100 requests / day**, which is plenty for browsing.
-
----
-
-### 2 · Add your API key
-
-**Option A – edit `config.js`** *(recommended for repeated use)*
-
-```js
-// config.js
-const RAPIDAPI_CONFIG = {
-  RAPIDAPI_KEY: 'paste_your_key_here',   // ← replace this
-  RAPIDAPI_HOST: 'api-football-v1.p.rapidapi.com',
-};
-```
-
-**Option B – enter it in the UI**
-
-Click the **🔑 API Key** button in the top-right corner and paste your key. It is stored in `localStorage` and survives page refreshes.
-
----
-
-### 3 · Open the app
-
-Just open `index.html` in any modern browser — no build step, no server needed.
-
-```
-open index.html          # macOS
-start index.html         # Windows
-xdg-open index.html      # Linux
-```
-
-> **CORS note**: The RapidAPI calls are made directly from the browser. If you run into CORS issues (rare), serve the files with a local dev server:
->
+> If you see CORS errors (rare), serve with a simple local server:
 > ```bash
 > npx serve .
 > # or
@@ -71,31 +35,21 @@ xdg-open index.html      # Linux
 
 | Action | How |
 |--------|-----|
-| Search by player name | Select **By Name** tab → choose a league → type ≥ 3 characters → press Enter or click Search |
-| Search by team roster | Select **By Team** tab → type a team name → click the team in results |
-| Add player to squad | Click any player card (auto-assigns to the best empty slot) |
+| Search by player name | Select **By Name** tab → enter the **full name** (e.g. `Erling Haaland`) → press Enter |
+| Search by club | Select **By Team** tab → enter the official club name (e.g. `Liverpool`, `Real Madrid`) |
+| Browse top-rated players | Select **Top Rated** tab → set a rank range → click **Load** |
+| Add player to squad | Click any player card (auto-assigns to the best empty position slot) |
 | Assign to a specific slot | Click a position slot on the pitch first (it highlights), then click a player card |
 | Remove from squad | Hover over a slot on the pitch → click the red **✕** button |
-| Change formation | Use the **Formation** dropdown — existing players stay in their slot indices |
-| Clear squad | Click **Clear** (will ask for confirmation) |
+| Change formation | Use the **Formation** dropdown |
+| Clear squad | Click **Clear** (asks for confirmation if squad is non-empty) |
 
 ---
 
-## Stat derivation
+## Data source
 
-API-Football does not expose FUT-style attributes directly, so the app derives them from match statistics:
-
-| FUT Stat | Derived from |
-|----------|-------------|
-| **PAC** | Dribble success rate + position bias |
-| **SHO** | Goals/game + shot-on-target rate |
-| **PAS** | Pass accuracy + key passes/game |
-| **DRI** | Dribble success rate |
-| **DEF** | Tackles/game + position bias |
-| **PHY** | Overall rating + position bias |
-| **OVR** | `games.rating` (API scale ~5–9.5 mapped to 50–99) |
-
-Card rarity follows overall rating: **Bronze** < 65 · **Silver** 65–74 · **Gold** 75–84 · **Special** 85+
+Player data and card images are served by the FC26 API at `https://api.msmc.cc/api/fc26`.  
+Card artwork is © EA Sports / Electronic Arts.
 
 ---
 
@@ -104,8 +58,7 @@ Card rarity follows overall rating: **Bronze** < 65 · **Silver** 65–74 · **G
 | Layer | Tech |
 |-------|------|
 | UI | Plain HTML5 + CSS3 + vanilla JS (ES2020) |
-| Data | [API-Football v3](https://www.api-football.com/) via RapidAPI |
-| Storage | `localStorage` (API key only) |
+| Data | FC26 API (`api.msmc.cc`) |
 | Build | None — open `index.html` directly |
 
 ---
@@ -115,9 +68,8 @@ Card rarity follows overall rating: **Bronze** < 65 · **Silver** 65–74 · **G
 ```
 .
 ├── index.html   – app shell
-├── style.css    – all styles (dark FUT theme)
+├── style.css    – all styles (dark FC theme)
 ├── app.js       – all application logic
-├── config.js    – API key (edit this)
 └── README.md    – this file
 ```
 
@@ -127,9 +79,7 @@ Card rarity follows overall rating: **Bronze** < 65 · **Silver** 65–74 · **G
 
 | Problem | Solution |
 |---------|---------|
-| "No players found" | Make sure you've selected the **correct league** for the player — the API free tier **requires a league** for name searches |
-| Player not in listed league | Use **By Team** search instead: find their club, then browse its full roster |
-| "Invalid API key" | Check your key in `config.js` or via the 🔑 button; make sure you subscribed on RapidAPI |
-| "Rate limit hit" | Free tier = 100 req/day. Wait until tomorrow or upgrade your plan |
-| Images not loading | Player photos come from `media.api-sports.io` — a fallback silhouette is shown if unavailable |
+| "Player not found" | The name search needs the **exact full name** (e.g. `Kylian Mbappé`, not `Mbappe`). Try the **By Team** tab instead |
+| Team returns no results | Use the club's official full name (e.g. `Manchester City`, not `Man City`) |
+| Card images not loading | Images are served from EA's CDN — a numbered fallback badge is shown if unavailable |
 | CORS error | Serve via `npx serve .` instead of opening `index.html` directly |
