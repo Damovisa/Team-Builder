@@ -194,6 +194,37 @@ img { display: block; }
   min-height: 22px;
 }
 
+/* Position filter bar */
+.pos-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+}
+.pos-filter-label {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.pos-filter-select {
+  flex: 1;
+  background: rgba(255,255,255,0.055);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  padding: 5px 8px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+}
+.pos-filter-select:focus { outline: none; border-color: var(--gold); }
+.pos-filter-select option,
+.pos-filter-select optgroup { background: #0f1623; }
+.pos-filter-count {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
 /* Slot-selection hint */
 .slot-hint {
   margin: 0 12px 4px;

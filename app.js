@@ -80,6 +80,7 @@ let currentFormation = '4-3-3';
 let selectedSlot     = null;
 let searchType       = 'name';
 let isSearching      = false;
+let allResults       = [];   // full unfiltered result set from last search
 
 // ────────────────────────────────────────────────────────────────
 // HELPERS
@@ -346,25 +347,8 @@ function updateTeamStats() {
 // REFRESH IN-TEAM BADGES ON RESULT CARDS
 // ────────────────────────────────────────────────────────────────
 function refreshCardStates() {
-  const inTeamIds = new Set(team.filter(Boolean).map(p => p.id));
-
-  document.querySelectorAll('.result-card').forEach(card => {
-    const alreadyIn = inTeamIds.has(card.dataset.playerId);
-    const addBtn = card.querySelector('.rc-add-btn');
-
-    if (alreadyIn) {
-      if (!card.querySelector('.result-in-team-badge')) {
-        const b = document.createElement('div');
-        b.className = 'result-in-team-badge';
-        b.textContent = '✓ In Team';
-        card.prepend(b);
-      }
-      if (addBtn) { addBtn.classList.add('added'); addBtn.textContent = '✓'; }
-    } else {
-      card.querySelector('.result-in-team-badge')?.remove();
-      if (addBtn) { addBtn.classList.remove('added'); addBtn.textContent = '+'; }
-    }
-  });
+  // Re-render results from stored allResults so in-team badges are always accurate
+  if (allResults.length) applyPosFilter();
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -432,25 +416,53 @@ async function doRankSearch() {
 // RENDER RESULTS
 // ────────────────────────────────────────────────────────────────
 function renderSinglePlayer(player) {
-  const resultsEl = document.getElementById('searchResults');
-  setStatus('1 player found');
-  resultsEl.innerHTML = '';
-  const inTeam = team.filter(Boolean).some(p => p.id === player.id);
-  resultsEl.appendChild(buildResultCard(player, inTeam));
+  allResults = [player];
+  applyPosFilter();
 }
 
 function renderPlayerList(players) {
+  allResults = players;
+  applyPosFilter();
+}
+
+// Filter allResults by the selected position (main or alternative) and render
+function applyPosFilter() {
+  const pos = document.getElementById('posFilter').value;
+  const filtered = pos
+    ? allResults.filter(p => {
+        const alts = Array.isArray(p['alternative positions']) ? p['alternative positions'] : [];
+        return p.position === pos || alts.includes(pos);
+      })
+    : allResults;
+
   const resultsEl = document.getElementById('searchResults');
   const inTeamIds = new Set(team.filter(Boolean).map(p => p.id));
-  setStatus(`${players.length} player${players.length !== 1 ? 's' : ''} found`);
   resultsEl.innerHTML = '';
-  players.forEach(p => resultsEl.appendChild(buildResultCard(p, inTeamIds.has(p.id))));
+
+  if (!filtered.length) {
+    resultsEl.innerHTML = `<div class="empty-state"><div class="empty-icon">🔍</div><p>No ${pos} players in these results</p></div>`;
+  } else {
+    filtered.forEach(p => resultsEl.appendChild(buildResultCard(p, inTeamIds.has(p.id))));
+  }
+
+  const total = allResults.length;
+  const shown = filtered.length;
+  setStatus(pos
+    ? `${shown} of ${total} player${total !== 1 ? 's' : ''} · filtered by ${pos}`
+    : `${total} player${total !== 1 ? 's' : ''} found`
+  );
+
+  // Show filter bar whenever there are results
+  document.getElementById('posFilterBar').classList.toggle('hidden', total === 0);
 }
 
 // ────────────────────────────────────────────────────────────────
 // UI HELPERS
 // ────────────────────────────────────────────────────────────────
 function showLoading(msg = 'Searching…') {
+  allResults = [];
+  document.getElementById('posFilterBar').classList.add('hidden');
+  document.getElementById('posFilter').value = '';
   document.getElementById('searchResults').innerHTML =
     `<div class="empty-state"><div class="spinner"></div><p>${msg}</p></div>`;
   setStatus('');
@@ -503,6 +515,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('teamInput').addEventListener('keydown', e => e.key === 'Enter' && doTeamSearch());
 
   document.getElementById('rankSearchBtn').addEventListener('click', doRankSearch);
+
+  // Position filter
+  document.getElementById('posFilter').addEventListener('change', applyPosFilter);
 
   // Formation
   document.getElementById('formationSelect').addEventListener('change', e => {
