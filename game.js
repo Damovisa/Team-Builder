@@ -105,10 +105,14 @@ async function initGame() {
 
     // Wire up the returnToPack hook
     returnToPack = (player) => {
-      // Return displaced player to the currently viewed pack so user can reassign
-      if (!packs[currentPackIdx].find(p => p.id === player.id)) {
-        packs[currentPackIdx].push(player);
-        playerPackMap[player.id] = currentPackIdx;
+      // Return to original pack, or current pack, avoiding the ALL sentinel
+      let targetPack = playerPackMap[player.id];
+      if (targetPack === undefined || targetPack < 0) {
+        targetPack = currentPackIdx >= 0 ? currentPackIdx : 0;
+      }
+      if (!packs[targetPack].find(p => p.id === player.id)) {
+        packs[targetPack].push(player);
+        playerPackMap[player.id] = targetPack;
       }
       renderCurrentPack();
     };
@@ -446,6 +450,9 @@ function renderGameStatus() {
       <span class="status-complete">✓ Team Complete!</span>
       <button class="btn-primary" id="continueBtn">Continue →</button>`;
     document.getElementById('continueBtn').addEventListener('click', () => {
+      if (!isCurrentTeamSaved()) {
+        if (!confirm('You haven\'t saved your team. Continue without saving?')) return;
+      }
       initChallenger();
     });
   } else if (allOpened) {

@@ -93,6 +93,18 @@ img { display: block; }
 }
 .btn-danger:hover { background: rgba(192,57,43,0.32); }
 
+.btn-save {
+  background: rgba(212,175,55,0.15);
+  border: 1px solid var(--gold-dark);
+  color: var(--gold-light);
+  padding: 6px 13px;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  transition: background .2s;
+}
+.btn-save:hover { background: rgba(212,175,55,0.3); }
+
 /* ════════════════════════════════════
    LAYOUT
    ════════════════════════════════════ */
@@ -866,6 +878,79 @@ img { display: block; }
   border-color: var(--gold-dark);
   background: rgba(212,175,55,0.08);
 }
+
+/* ── Saved Teams on Start Screen ── */
+.saved-teams-section {
+  margin-top: 32px;
+  width: 100%;
+  max-width: 440px;
+}
+.saved-teams-heading {
+  font-size: 0.9rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+.saved-teams-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.saved-team-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: border-color .18s, background .18s;
+}
+.saved-team-card:hover {
+  border-color: var(--gold-dark);
+  background: rgba(212,175,55,0.04);
+}
+.saved-team-info {
+  text-align: left;
+}
+.saved-team-name {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.saved-team-meta {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+.saved-team-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.saved-team-play {
+  background: rgba(212,175,55,0.15);
+  border: 1px solid var(--gold-dark);
+  color: var(--gold-light);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  transition: background .2s;
+}
+.saved-team-play:hover { background: rgba(212,175,55,0.3); }
+.saved-team-delete {
+  background: transparent;
+  border: 1px solid rgba(192,57,43,0.3);
+  color: #e06060;
+  padding: 6px 10px;
+  border-radius: 6px;
+  font-size: 0.78rem;
+  transition: background .2s;
+}
+.saved-team-delete:hover { background: rgba(192,57,43,0.2); }
 
 /* ════════════════════════════════════
    GAME PANEL (pack opening mode)

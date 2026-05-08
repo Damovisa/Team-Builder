@@ -306,6 +306,11 @@ function afterTeamChange() {
   updateTeamStats();
   if (typeof refreshCardStates === 'function') refreshCardStates();
   renderSlotHint();
+  // Show save button only when team is full
+  const saveBtn = document.getElementById('saveTeamBtn');
+  if (saveBtn) {
+    saveBtn.classList.toggle('hidden', team.filter(Boolean).length < 11);
+  }
   // Notify game mode of team changes
   if (gameMode === 'game' && typeof onGameTeamChange === 'function') onGameTeamChange();
 }
@@ -423,6 +428,120 @@ function showToast(message, type = 'success') {
 }
 
 // ────────────────────────────────────────────────────────────────
+// SAVED TEAMS (localStorage)
+// ────────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'fc26_saved_teams';
+
+function loadSavedTeams() {
+  try {
+    return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+  } catch { return []; }
+}
+
+function storeSavedTeams(teams) {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(teams));
+}
+
+function isCurrentTeamSaved() {
+  const saved = loadSavedTeams();
+  const currentIds = team.filter(Boolean).map(p => p.id).sort().join(',');
+  return saved.some(entry => {
+    const ids = (entry.team || []).filter(Boolean).map(p => p.id).sort().join(',');
+    return ids === currentIds;
+  });
+}
+
+function saveCurrentTeam() {
+  const filled = team.filter(Boolean).length;
+  if (filled === 0) { showToast('No players to save', 'error'); return; }
+
+  const name = prompt('Team name:');
+  if (!name || !name.trim()) return;
+
+  const saved = loadSavedTeams();
+  saved.push({
+    name: name.trim(),
+    formation: currentFormation,
+    team: team.map(p => p || null),
+    savedAt: new Date().toISOString(),
+  });
+  storeSavedTeams(saved);
+  showToast(`"${name.trim()}" saved!`);
+}
+
+function deleteSavedTeam(index) {
+  const saved = loadSavedTeams();
+  if (index < 0 || index >= saved.length) return;
+  saved.splice(index, 1);
+  storeSavedTeams(saved);
+  renderSavedTeamsOnStart();
+}
+
+function loadSavedTeamAndChallenge(index) {
+  const saved = loadSavedTeams();
+  const entry = saved[index];
+  if (!entry) return;
+
+  // Restore team state
+  currentFormation = entry.formation || '4-3-3';
+  document.getElementById('formationSelect').value = currentFormation;
+  for (let i = 0; i < 11; i++) team[i] = entry.team[i] || null;
+
+  // Enter game mode and go straight to challenger
+  gameMode = 'game';
+  document.getElementById('startScreen').classList.add('hidden');
+  document.getElementById('appMain').classList.remove('hidden');
+  document.getElementById('searchPanel').classList.add('hidden');
+  document.getElementById('gamePanel').classList.add('hidden');
+  document.getElementById('clearTeamBtn').classList.add('hidden');
+  document.getElementById('saveTeamBtn').classList.add('hidden');
+
+  afterTeamChange();
+  initChallenger();
+}
+
+function renderSavedTeamsOnStart() {
+  const section = document.getElementById('savedTeamsSection');
+  const list = document.getElementById('savedTeamsList');
+  const saved = loadSavedTeams();
+
+  if (saved.length === 0) {
+    section.classList.add('hidden');
+    return;
+  }
+  section.classList.remove('hidden');
+  list.innerHTML = '';
+
+  saved.forEach((entry, idx) => {
+    const filled = (entry.team || []).filter(Boolean).length;
+    const avgOvr = filled > 0
+      ? Math.round(entry.team.filter(Boolean).reduce((s, p) => s + (parseInt(p.ovr) || 0), 0) / filled)
+      : '—';
+    const date = new Date(entry.savedAt);
+    const dateStr = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+
+    const card = document.createElement('div');
+    card.className = 'saved-team-card';
+    card.innerHTML = `
+      <div class="saved-team-info">
+        <div class="saved-team-name">${esc(entry.name)}</div>
+        <div class="saved-team-meta">${entry.formation} · ${filled}/11 · OVR ${avgOvr} · ${dateStr}</div>
+      </div>
+      <div class="saved-team-actions">
+        <button class="saved-team-play" title="Challenge with this team">⚔️ Challenge</button>
+        <button class="saved-team-delete" title="Delete saved team">🗑️</button>
+      </div>`;
+
+    card.querySelector('.saved-team-play').addEventListener('click', () => loadSavedTeamAndChallenge(idx));
+    card.querySelector('.saved-team-delete').addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (confirm(`Delete "${entry.name}"?`)) deleteSavedTeam(idx);
+    });
+    list.appendChild(card);
+  });
+}
+
+// ────────────────────────────────────────────────────────────────
 // START SCREEN & MODE SELECTION
 // ────────────────────────────────────────────────────────────────
 function startMode(mode) {
@@ -453,6 +572,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // Start screen buttons
   document.getElementById('btnPlayGame').addEventListener('click', () => startMode('game'));
   document.getElementById('btnFreeBuild').addEventListener('click', () => startMode('free'));
+
+  // Render saved teams on start screen
+  renderSavedTeamsOnStart();
+
+  // Save team button
+  document.getElementById('saveTeamBtn').addEventListener('click', saveCurrentTeam);
 
   // Formation
   document.getElementById('formationSelect').addEventListener('change', e => {
