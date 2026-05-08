@@ -453,9 +453,7 @@ function renderGameStatus() {
     document.getElementById('gameSaveBtn').addEventListener('click', saveCurrentTeam);
     document.getElementById('continueBtn').addEventListener('click', () => {
       if (!isCurrentTeamSaved()) {
-        if (confirm('Save your team before continuing? You can load it later from the start screen.')) {
-          saveCurrentTeam();
-        }
+        if (!confirm('You haven\'t saved your team. Continue without saving?')) return;
       }
       initChallenger();
     });
