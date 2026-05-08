@@ -1216,3 +1216,149 @@ img { display: block; }
   font-size: 0.72rem;
   color: var(--text-muted);
 }
+
+/* ════════════════════════════════════
+   CHALLENGER PHASE
+   ════════════════════════════════════ */
+.app-main.challenger-phase {
+  grid-template-columns: 1fr;
+}
+
+.challenger-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 16px;
+  color: var(--text-secondary);
+}
+
+/* Match header */
+.match-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.match-team-name {
+  font-size: 1.1rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.match-team-icon { font-size: 1.3rem; }
+.match-ovr {
+  background: var(--gold);
+  color: #000;
+  font-size: 0.82rem;
+  font-weight: 800;
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-left: 4px;
+}
+.match-vs {
+  font-size: 1.4rem;
+  font-weight: 900;
+  color: var(--gold);
+  text-shadow: 0 0 12px rgba(212,175,55,.4);
+}
+
+/* Two-pitch layout */
+.match-pitches {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  gap: 8px;
+  padding: 8px;
+}
+.match-pitch-col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+}
+.match-pitch-col .pitch-wrapper {
+  flex: 1;
+  min-height: 0;
+}
+
+/* Smaller cards on match pitches */
+.match-pitch .slot-card-wrap { width: 72px; }
+.match-pitch .slot-card-img  { width: 72px; }
+.match-pitch .slot-card-fallback {
+  width: 72px; height: 96px;
+  font-size: 1.1rem;
+}
+.match-pitch .slot-name { font-size: 0.55rem; max-width: 72px; }
+.match-pitch .slot-pos-label { font-size: 0.5rem; }
+.match-pitch .slot-empty-ring { width: 36px; height: 36px; }
+.match-pitch .slot-pos-empty { font-size: 0.5rem; }
+
+/* Match stats bar (compact version under each pitch) */
+.match-stats-bar {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 4px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.match-stats-bar .team-stat { gap: 1px; }
+.match-stats-bar .tstat-label { font-size: 0.58rem; }
+.match-stats-bar .tstat-value { font-size: 0.78rem; }
+
+/* Player detail in match phase */
+.match-detail {
+  flex-shrink: 0;
+  border-top: 1px solid var(--border);
+  padding: 8px 16px;
+  min-height: 60px;
+}
+.match-detail-inner {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.match-detail-inner .pd-card { flex-shrink: 0; }
+.match-detail-inner .pd-card-img { width: 100px; height: auto; }
+.match-detail-info {
+  flex: 1;
+  min-width: 0;
+}
+.match-detail-info .pd-name { font-size: 1rem; }
+.match-detail-info .pd-meta { margin-top: 4px; }
+.match-detail-info .pd-stats {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+/* Play Game button */
+.match-actions {
+  display: flex;
+  justify-content: center;
+  padding: 10px 16px 14px;
+  flex-shrink: 0;
+}
+.match-play-btn {
+  font-size: 1.1rem;
+  padding: 12px 48px;
+  letter-spacing: 0.5px;
+}
+
+/* Responsive: stack pitches vertically on narrow screens */
+@media (max-width: 900px) {
+  .match-pitches {
+    flex-direction: column;
+  }
+  .match-pitch-col .pitch-wrapper {
+    min-height: 300px;
+  }
+}

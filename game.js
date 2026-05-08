@@ -20,6 +20,9 @@ let packPosFilter = '';   // Current position filter for pack view
 let packTierFilter = '';  // Current tier filter: '', 'gold', 'silver', 'bronze'
 let platinumPackIdx = -1; // Which pack is the platinum pack
 
+// ── Challenger phase state ──
+let challengerTeam = new Array(11).fill(null);
+
 // ────────────────────────────────────────────────────────────────
 // INIT GAME
 // ────────────────────────────────────────────────────────────────
@@ -428,7 +431,7 @@ function renderGameStatus() {
       <span class="status-complete">✓ Team Complete!</span>
       <button class="btn-primary" id="continueBtn">Continue →</button>`;
     document.getElementById('continueBtn').addEventListener('click', () => {
-      showToast('Next phase coming soon!');
+      initChallenger();
     });
   } else if (allOpened) {
     statusEl.innerHTML = `<span class="status-progress">${filled}/11 positions filled — revisit packs to fill your team</span>`;
@@ -450,4 +453,281 @@ function gameAddToTeam(player) {
   // Use the shared addToTeam which handles slot assignment.
   // The returnToPack hook (set in initGame) handles displaced players automatically.
   addToTeam(player);
+}
+
+// ────────────────────────────────────────────────────────────────
+// CHALLENGER PHASE
+// ────────────────────────────────────────────────────────────────
+
+async function initChallenger() {
+  // Transition: hide game panel, go full width
+  document.getElementById('gamePanel').classList.add('hidden');
+  document.getElementById('appMain').classList.add('challenger-phase');
+
+  // Disable team mutations: clear hook, block formation changes, hide controls
+  returnToPack = () => {};
+  onGameTeamChange = null;
+  document.querySelector('.team-controls').classList.add('hidden');
+
+  const teamPanel = document.querySelector('.team-panel');
+  teamPanel.innerHTML = `
+    <div class="challenger-loading">
+      <div class="spinner"></div>
+      <p>Finding your opponents…</p>
+    </div>`;
+
+  try {
+    const pool = await fetchChallengerPool();
+    challengerTeam = buildChallengerTeam(pool, currentFormation);
+    renderChallengerPhase();
+  } catch (err) {
+    teamPanel.innerHTML = `
+      <div class="challenger-loading">
+        <div class="empty-icon">⚠️</div>
+        <p style="color:#e06060">Failed to find opponents: ${esc(err.message)}</p>
+        <button class="btn-primary" onclick="initChallenger()">Retry</button>
+      </div>`;
+  }
+}
+
+// Fetch a small pool of players ranked roughly in the OVR 50–70 range.
+// Uses rank-based queries (~ranks 4000–14000 ≈ OVR 50–72) to keep payloads small.
+async function fetchChallengerPool() {
+  // Pick a random starting rank in the 5000–12000 range
+  const rankStart = 5000 + Math.floor(Math.random() * 7000);
+  const pool = await fetchByRankRange(rankStart, rankStart + 59);
+  if (pool.length >= 11) return pool;
+  // Fallback: try a second range
+  const rankStart2 = 5000 + Math.floor(Math.random() * 7000);
+  const pool2 = await fetchByRankRange(rankStart2, rankStart2 + 59);
+  return [...pool, ...pool2];
+}
+
+function buildChallengerTeam(pool, formation) {
+  const slots = FORMATIONS[formation];
+  const result = new Array(11).fill(null);
+  const used = new Set();
+  const shuffled = [...pool].sort(() => Math.random() - 0.5);
+
+  // Pass 1: exact position match
+  for (let i = 0; i < 11; i++) {
+    const slotPos = slots[i].pos;
+    const player = shuffled.find(p => !used.has(p.id) && p.position === slotPos);
+    if (player) { result[i] = player; used.add(player.id); }
+  }
+
+  // Pass 2: alternative position match
+  for (let i = 0; i < 11; i++) {
+    if (result[i]) continue;
+    const slotPos = slots[i].pos;
+    const player = shuffled.find(p => {
+      if (used.has(p.id)) return false;
+      const alts = Array.isArray(p['alternative positions']) ? p['alternative positions'] : [];
+      return alts.includes(slotPos);
+    });
+    if (player) { result[i] = player; used.add(player.id); }
+  }
+
+  // Pass 3: same position group
+  for (let i = 0; i < 11; i++) {
+    if (result[i]) continue;
+    const slotGroup = posGroup(slots[i].pos);
+    const player = shuffled.find(p => !used.has(p.id) && posGroup(p.position) === slotGroup);
+    if (player) { result[i] = player; used.add(player.id); }
+  }
+
+  // Pass 4: any remaining
+  for (let i = 0; i < 11; i++) {
+    if (result[i]) continue;
+    const player = shuffled.find(p => !used.has(p.id));
+    if (player) { result[i] = player; used.add(player.id); }
+  }
+
+  return result;
+}
+
+function renderChallengerPhase() {
+  const teamPanel = document.querySelector('.team-panel');
+
+  // Compute average stats for both teams
+  const userStats = calcTeamAvgStats(team);
+  const challStats = calcTeamAvgStats(challengerTeam);
+
+  teamPanel.innerHTML = `
+    <div class="match-header">
+      <div class="match-team-name">
+        <span class="match-team-icon">⚽</span> Your Team
+        <span class="match-ovr">${userStats.ovr}</span>
+      </div>
+      <div class="match-vs">VS</div>
+      <div class="match-team-name">
+        <span class="match-team-icon">🎯</span> Challenger
+        <span class="match-ovr">${challStats.ovr}</span>
+      </div>
+    </div>
+
+    <div class="match-pitches">
+      <div class="match-pitch-col">
+        <div class="pitch-wrapper">
+          <div class="pitch match-pitch" id="userMatchPitch">
+            <div class="pitch-markings" aria-hidden="true">
+              <div class="halfway-line"></div>
+              <div class="center-circle"></div>
+              <div class="center-dot"></div>
+              <div class="penalty-area penalty-top"></div>
+              <div class="penalty-area penalty-bottom"></div>
+              <div class="goal-area goal-top"></div>
+              <div class="goal-area goal-bottom"></div>
+              <div class="corner corner-tl"></div>
+              <div class="corner corner-tr"></div>
+              <div class="corner corner-bl"></div>
+              <div class="corner corner-br"></div>
+            </div>
+            <div class="slots-container" id="userMatchSlots"></div>
+          </div>
+        </div>
+        ${buildStatsBarHTML(userStats)}
+      </div>
+
+      <div class="match-pitch-col">
+        <div class="pitch-wrapper">
+          <div class="pitch match-pitch" id="challengerMatchPitch">
+            <div class="pitch-markings" aria-hidden="true">
+              <div class="halfway-line"></div>
+              <div class="center-circle"></div>
+              <div class="center-dot"></div>
+              <div class="penalty-area penalty-top"></div>
+              <div class="penalty-area penalty-bottom"></div>
+              <div class="goal-area goal-top"></div>
+              <div class="goal-area goal-bottom"></div>
+              <div class="corner corner-tl"></div>
+              <div class="corner corner-tr"></div>
+              <div class="corner corner-bl"></div>
+              <div class="corner corner-br"></div>
+            </div>
+            <div class="slots-container" id="challengerMatchSlots"></div>
+          </div>
+        </div>
+        ${buildStatsBarHTML(challStats)}
+      </div>
+    </div>
+
+    <div class="match-detail" id="matchPlayerDetail">
+      <div class="player-detail-empty">Click a player on either pitch to see details</div>
+    </div>
+
+    <div class="match-actions">
+      <button class="btn-primary match-play-btn" id="playGameBtn">⚽ Play Game</button>
+    </div>`;
+
+  renderMatchPitch('userMatchSlots', team, currentFormation);
+  renderMatchPitch('challengerMatchSlots', challengerTeam, currentFormation);
+
+  document.getElementById('playGameBtn').addEventListener('click', () => {
+    showToast('Match simulation coming soon!');
+  });
+}
+
+function renderMatchPitch(containerId, teamArr, formation) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = '';
+
+  FORMATIONS[formation].forEach((slotDef, idx) => {
+    const player = teamArr[idx];
+    const isFilled = !!player;
+
+    const slotEl = document.createElement('div');
+    slotEl.className = `pitch-slot${isFilled ? ' filled' : ''}`;
+    slotEl.style.left = `${slotDef.x}%`;
+    slotEl.style.top = `${slotDef.y}%`;
+
+    if (isFilled) {
+      slotEl.innerHTML = `
+        <div class="slot-card-wrap">
+          <img class="slot-card-img" src="${esc(player.card)}" alt="${esc(player.name)}"
+               onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="slot-card-fallback" style="display:none">${esc(player.ovr)}</div>
+        </div>
+        <div class="slot-name">${esc(shortName(player.name))}</div>
+        <div class="slot-pos-label">${esc(slotDef.pos)}</div>`;
+      slotEl.addEventListener('click', () => showMatchPlayerDetail(player));
+      slotEl.style.cursor = 'pointer';
+    } else {
+      slotEl.innerHTML = `
+        <div class="slot-empty-ring">
+          <span class="slot-pos-empty">${esc(slotDef.pos)}</span>
+        </div>
+        <div class="slot-label-empty">Empty</div>`;
+    }
+
+    container.appendChild(slotEl);
+  });
+}
+
+function showMatchPlayerDetail(player) {
+  const panel = document.getElementById('matchPlayerDetail');
+  if (!panel || !player) return;
+
+  const altPos = Array.isArray(player['alternative positions']) && player['alternative positions'].length
+    ? player['alternative positions'].join(', ')
+    : null;
+  const isGK = player.position === 'GK';
+
+  panel.innerHTML = `
+    <div class="match-detail-inner">
+      <div class="pd-card">
+        <img class="pd-card-img" src="${esc(player.card)}" alt="${esc(player.name)}"
+             onerror="this.style.display='none'">
+      </div>
+      <div class="match-detail-info">
+        <div class="pd-name">${esc(player.name)}</div>
+        <div class="pd-meta">
+          <div class="pd-row"><span class="pd-label">Club</span> ${esc(player.team)}</div>
+          <div class="pd-row"><span class="pd-label">Nation</span> ${esc(player.nation)}</div>
+          <div class="pd-row"><span class="pd-label">Position</span> ${esc(player.position)}${altPos ? ` <span class="pd-alt">(${esc(altPos)})</span>` : ''}</div>
+          <div class="pd-row"><span class="pd-label">Foot</span> ${esc(player['preferred foot'])} ⭐${esc(player['weak foot'])}</div>
+        </div>
+        <div class="pd-stats">
+          ${isGK ? `
+            <div class="pd-stat"><span class="pd-stat-label">DIV</span><span class="pd-stat-val">${esc(player.diving)}</span></div>
+            <div class="pd-stat"><span class="pd-stat-label">HAN</span><span class="pd-stat-val">${esc(player.handling)}</span></div>
+            <div class="pd-stat"><span class="pd-stat-label">KIC</span><span class="pd-stat-val">${esc(player.kicking)}</span></div>
+            <div class="pd-stat"><span class="pd-stat-label">REF</span><span class="pd-stat-val">${esc(player.reflexes)}</span></div>
+            <div class="pd-stat"><span class="pd-stat-label">SPD</span><span class="pd-stat-val">${esc(player.pac)}</span></div>
+            <div class="pd-stat"><span class="pd-stat-label">POS</span><span class="pd-stat-val">${esc(player.def)}</span></div>
+          ` : `
+            <div class="pd-stat"><span class="pd-stat-label">PAC</span><span class="pd-stat-val">${esc(player.pac)}</span></div>
+            <div class="pd-stat"><span class="pd-stat-label">SHO</span><span class="pd-stat-val">${esc(player.sho)}</span></div>
+            <div class="pd-stat"><span class="pd-stat-label">PAS</span><span class="pd-stat-val">${esc(player.pas)}</span></div>
+            <div class="pd-stat"><span class="pd-stat-label">DRI</span><span class="pd-stat-val">${esc(player.dri)}</span></div>
+            <div class="pd-stat"><span class="pd-stat-label">DEF</span><span class="pd-stat-val">${esc(player.def)}</span></div>
+            <div class="pd-stat"><span class="pd-stat-label">PHY</span><span class="pd-stat-val">${esc(player.phy)}</span></div>
+          `}
+        </div>
+      </div>
+    </div>`;
+}
+
+function calcTeamAvgStats(teamArr) {
+  const players = teamArr.filter(Boolean);
+  const n = players.length;
+  const avg = (key) => n ? Math.round(players.reduce((s, p) => s + (parseInt(p[key]) || 0), 0) / n) : '—';
+  return {
+    ovr: avg('ovr'), pac: avg('pac'), sho: avg('sho'),
+    pas: avg('pas'), dri: avg('dri'), def: avg('def'), phy: avg('phy'),
+  };
+}
+
+function buildStatsBarHTML(stats) {
+  return `
+    <div class="match-stats-bar">
+      <div class="team-stat"><span class="tstat-label">OVR</span><span class="tstat-value">${stats.ovr}</span></div>
+      <div class="team-stat"><span class="tstat-label">PAC</span><span class="tstat-value">${stats.pac}</span></div>
+      <div class="team-stat"><span class="tstat-label">SHO</span><span class="tstat-value">${stats.sho}</span></div>
+      <div class="team-stat"><span class="tstat-label">PAS</span><span class="tstat-value">${stats.pas}</span></div>
+      <div class="team-stat"><span class="tstat-label">DRI</span><span class="tstat-value">${stats.dri}</span></div>
+      <div class="team-stat"><span class="tstat-label">DEF</span><span class="tstat-value">${stats.def}</span></div>
+      <div class="team-stat"><span class="tstat-label">PHY</span><span class="tstat-value">${stats.phy}</span></div>
+    </div>`;
 }

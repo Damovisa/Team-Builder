@@ -94,7 +94,7 @@ String filters are partial matches: `name=salah` matches all Salahs.
 |---|---|
 | `app.js` | Shared core: API, formations, team state, pitch rendering, mode selection |
 | `free-build.js` | Search panel: name/team/rank search, position filter, result rendering |
-| `game.js` | Pack-opening game: fetches random players, pack UI, swap mechanics |
+| `game.js` | Pack-opening game: fetches random players, pack UI, swap mechanics, challenger phase |
 
 ### Key globals (app.js)
 
@@ -121,6 +121,7 @@ String filters are partial matches: `name=salah` matches all Salahs.
 | `packOpened` | Boolean array tracking which packs have been opened |
 | `currentPackIdx` | Index (0–4) of the currently viewed pack |
 | `playerPackMap` | Maps player.id → pack index for returning players to packs |
+| `challengerTeam` | `Array(11)` — challenger team built from random OVR 50–70 players |
 
 ### Key functions
 
@@ -133,6 +134,10 @@ String filters are partial matches: `name=salah` matches all Salahs.
 | `refreshCardStates()` | Re-runs `applyPosFilter()` so in-team badges stay accurate |
 | `afterTeamChange()` | Call after any team mutation: re-renders pitch, stats, card states |
 | `fetchByRankRange(from, to)` | Single API call using rank `<`/`>` operators |
+| `initChallenger()` | Transitions to challenger phase: fetches opponents, renders dual-pitch view |
+| `buildChallengerTeam(pool, formation)` | 4-pass position matching to assign pool players to formation slots |
+| `renderChallengerPhase()` | Renders side-by-side pitch comparison with stats and Play Game button |
+| `renderMatchPitch(containerId, teamArr, formation)` | Renders a read-only pitch into any container |
 
 ### Position auto-assign priority (in `addToTeam`)
 
