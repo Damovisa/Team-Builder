@@ -452,6 +452,11 @@ function renderGameStatus() {
       <button class="btn-primary" id="continueBtn">Continue →</button>`;
     document.getElementById('gameSaveBtn').addEventListener('click', saveCurrentTeam);
     document.getElementById('continueBtn').addEventListener('click', () => {
+      if (!isCurrentTeamSaved()) {
+        if (confirm('Save your team before continuing? You can load it later from the start screen.')) {
+          saveCurrentTeam();
+        }
+      }
       initChallenger();
     });
   } else if (allOpened) {

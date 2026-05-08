@@ -442,6 +442,15 @@ function storeSavedTeams(teams) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(teams));
 }
 
+function isCurrentTeamSaved() {
+  const saved = loadSavedTeams();
+  const currentIds = team.filter(Boolean).map(p => p.id).sort().join(',');
+  return saved.some(entry => {
+    const ids = (entry.team || []).filter(Boolean).map(p => p.id).sort().join(',');
+    return ids === currentIds;
+  });
+}
+
 function saveCurrentTeam() {
   const filled = team.filter(Boolean).length;
   if (filled === 0) { showToast('No players to save', 'error'); return; }
