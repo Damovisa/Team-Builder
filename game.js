@@ -490,17 +490,20 @@ async function initChallenger() {
   }
 }
 
-// Fetch a small pool of players ranked roughly in the OVR 50–70 range.
-// Uses rank-based queries (~ranks 4000–14000 ≈ OVR 50–72) to keep payloads small.
+// Fetch a diverse pool of players in the OVR 50–72 range.
+// Pulls from several spread-out rank windows for OVR variety.
 async function fetchChallengerPool() {
-  // Pick a random starting rank in the 5000–12000 range
-  const rankStart = 5000 + Math.floor(Math.random() * 7000);
-  const pool = await fetchByRankRange(rankStart, rankStart + 59);
+  const windows = [];
+  for (let i = 0; i < 4; i++) {
+    const rankStart = 4000 + Math.floor(Math.random() * 10000);
+    windows.push(fetchByRankRange(rankStart, rankStart + 19));
+  }
+  const results = await Promise.all(windows);
+  const pool = results.flat();
   if (pool.length >= 11) return pool;
-  // Fallback: try a second range
-  const rankStart2 = 5000 + Math.floor(Math.random() * 7000);
-  const pool2 = await fetchByRankRange(rankStart2, rankStart2 + 59);
-  return [...pool, ...pool2];
+  // Fallback: one more fetch
+  const extra = await fetchByRankRange(6000, 6059);
+  return [...pool, ...extra];
 }
 
 function buildChallengerTeam(pool, formation) {
@@ -566,54 +569,56 @@ function renderChallengerPhase() {
       </div>
     </div>
 
-    <div class="match-pitches">
-      <div class="match-pitch-col">
-        <div class="pitch-wrapper">
-          <div class="pitch match-pitch" id="userMatchPitch">
-            <div class="pitch-markings" aria-hidden="true">
-              <div class="halfway-line"></div>
-              <div class="center-circle"></div>
-              <div class="center-dot"></div>
-              <div class="penalty-area penalty-top"></div>
-              <div class="penalty-area penalty-bottom"></div>
-              <div class="goal-area goal-top"></div>
-              <div class="goal-area goal-bottom"></div>
-              <div class="corner corner-tl"></div>
-              <div class="corner corner-tr"></div>
-              <div class="corner corner-bl"></div>
-              <div class="corner corner-br"></div>
+    <div class="match-body">
+      <div class="match-pitches">
+        <div class="match-pitch-col">
+          <div class="pitch-wrapper">
+            <div class="pitch match-pitch" id="userMatchPitch">
+              <div class="pitch-markings" aria-hidden="true">
+                <div class="halfway-line"></div>
+                <div class="center-circle"></div>
+                <div class="center-dot"></div>
+                <div class="penalty-area penalty-top"></div>
+                <div class="penalty-area penalty-bottom"></div>
+                <div class="goal-area goal-top"></div>
+                <div class="goal-area goal-bottom"></div>
+                <div class="corner corner-tl"></div>
+                <div class="corner corner-tr"></div>
+                <div class="corner corner-bl"></div>
+                <div class="corner corner-br"></div>
+              </div>
+              <div class="slots-container" id="userMatchSlots"></div>
             </div>
-            <div class="slots-container" id="userMatchSlots"></div>
           </div>
+          ${buildStatsBarHTML(userStats)}
         </div>
-        ${buildStatsBarHTML(userStats)}
+
+        <div class="match-pitch-col">
+          <div class="pitch-wrapper">
+            <div class="pitch match-pitch" id="challengerMatchPitch">
+              <div class="pitch-markings" aria-hidden="true">
+                <div class="halfway-line"></div>
+                <div class="center-circle"></div>
+                <div class="center-dot"></div>
+                <div class="penalty-area penalty-top"></div>
+                <div class="penalty-area penalty-bottom"></div>
+                <div class="goal-area goal-top"></div>
+                <div class="goal-area goal-bottom"></div>
+                <div class="corner corner-tl"></div>
+                <div class="corner corner-tr"></div>
+                <div class="corner corner-bl"></div>
+                <div class="corner corner-br"></div>
+              </div>
+              <div class="slots-container" id="challengerMatchSlots"></div>
+            </div>
+          </div>
+          ${buildStatsBarHTML(challStats)}
+        </div>
       </div>
 
-      <div class="match-pitch-col">
-        <div class="pitch-wrapper">
-          <div class="pitch match-pitch" id="challengerMatchPitch">
-            <div class="pitch-markings" aria-hidden="true">
-              <div class="halfway-line"></div>
-              <div class="center-circle"></div>
-              <div class="center-dot"></div>
-              <div class="penalty-area penalty-top"></div>
-              <div class="penalty-area penalty-bottom"></div>
-              <div class="goal-area goal-top"></div>
-              <div class="goal-area goal-bottom"></div>
-              <div class="corner corner-tl"></div>
-              <div class="corner corner-tr"></div>
-              <div class="corner corner-bl"></div>
-              <div class="corner corner-br"></div>
-            </div>
-            <div class="slots-container" id="challengerMatchSlots"></div>
-          </div>
-        </div>
-        ${buildStatsBarHTML(challStats)}
+      <div class="match-detail" id="matchPlayerDetail">
+        <div class="player-detail-empty">Click a player on either pitch to see details</div>
       </div>
-    </div>
-
-    <div class="match-detail" id="matchPlayerDetail">
-      <div class="player-detail-empty">Click a player on either pitch to see details</div>
     </div>
 
     <div class="match-actions">

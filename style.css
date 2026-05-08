@@ -1268,7 +1268,13 @@ img { display: block; }
   text-shadow: 0 0 12px rgba(212,175,55,.4);
 }
 
-/* Two-pitch layout */
+/* Two-pitch layout with detail on the right */
+.match-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
 .match-pitches {
   display: flex;
   flex: 1;
@@ -1314,30 +1320,32 @@ img { display: block; }
 .match-stats-bar .tstat-label { font-size: 0.58rem; }
 .match-stats-bar .tstat-value { font-size: 0.78rem; }
 
-/* Player detail in match phase */
+/* Player detail sidebar in match phase */
 .match-detail {
+  width: 260px;
   flex-shrink: 0;
-  border-top: 1px solid var(--border);
-  padding: 8px 16px;
-  min-height: 60px;
+  border-left: 1px solid var(--border);
+  padding: 14px 12px;
+  overflow-y: auto;
 }
 .match-detail-inner {
   display: flex;
-  align-items: flex-start;
-  gap: 16px;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
 }
 .match-detail-inner .pd-card { flex-shrink: 0; }
-.match-detail-inner .pd-card-img { width: 100px; height: auto; }
+.match-detail-inner .pd-card-img { width: 120px; height: auto; }
 .match-detail-info {
-  flex: 1;
-  min-width: 0;
+  width: 100%;
 }
-.match-detail-info .pd-name { font-size: 1rem; }
-.match-detail-info .pd-meta { margin-top: 4px; }
+.match-detail-info .pd-name { font-size: 1rem; text-align: center; }
+.match-detail-info .pd-meta { margin-top: 6px; }
 .match-detail-info .pd-stats {
-  display: flex;
-  gap: 10px;
-  margin-top: 8px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 6px;
+  margin-top: 10px;
 }
 
 /* Play Game button */
@@ -1355,10 +1363,18 @@ img { display: block; }
 
 /* Responsive: stack pitches vertically on narrow screens */
 @media (max-width: 900px) {
+  .match-body {
+    flex-direction: column;
+  }
   .match-pitches {
     flex-direction: column;
   }
   .match-pitch-col .pitch-wrapper {
     min-height: 300px;
+  }
+  .match-detail {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--border);
   }
 }
