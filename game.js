@@ -444,7 +444,9 @@ function renderGameStatus() {
   if (filled === 11 && allOpened) {
     statusEl.innerHTML = `
       <span class="status-complete">✓ Team Complete!</span>
+      <button class="btn-save" id="gameSaveBtn">💾 Save</button>
       <button class="btn-primary" id="continueBtn">Continue →</button>`;
+    document.getElementById('gameSaveBtn').addEventListener('click', saveCurrentTeam);
     document.getElementById('continueBtn').addEventListener('click', () => {
       initChallenger();
     });
