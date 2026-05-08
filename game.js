@@ -490,19 +490,19 @@ async function initChallenger() {
   }
 }
 
-// Fetch a diverse pool of players in the OVR 50–72 range.
+// Fetch a diverse pool of players in the OVR 65–80 range.
 // Pulls from several spread-out rank windows for OVR variety.
 async function fetchChallengerPool() {
   const windows = [];
   for (let i = 0; i < 4; i++) {
-    const rankStart = 4000 + Math.floor(Math.random() * 10000);
+    const rankStart = 800 + Math.floor(Math.random() * 7200);
     windows.push(fetchByRankRange(rankStart, rankStart + 19));
   }
   const results = await Promise.all(windows);
   const pool = results.flat();
   if (pool.length >= 11) return pool;
   // Fallback: one more fetch
-  const extra = await fetchByRankRange(6000, 6059);
+  const extra = await fetchByRankRange(2000, 2059);
   return [...pool, ...extra];
 }
 
