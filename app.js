@@ -306,6 +306,11 @@ function afterTeamChange() {
   updateTeamStats();
   if (typeof refreshCardStates === 'function') refreshCardStates();
   renderSlotHint();
+  // Show save button only when team is full
+  const saveBtn = document.getElementById('saveTeamBtn');
+  if (saveBtn) {
+    saveBtn.classList.toggle('hidden', team.filter(Boolean).length < 11);
+  }
   // Notify game mode of team changes
   if (gameMode === 'game' && typeof onGameTeamChange === 'function') onGameTeamChange();
 }
@@ -539,13 +544,11 @@ function startMode(mode) {
     document.getElementById('searchPanel').classList.remove('hidden');
     document.getElementById('gamePanel').classList.add('hidden');
     document.getElementById('clearTeamBtn').classList.remove('hidden');
-    document.getElementById('saveTeamBtn').classList.remove('hidden');
     initFreeBuild();
   } else {
     document.getElementById('searchPanel').classList.add('hidden');
     document.getElementById('gamePanel').classList.remove('hidden');
     document.getElementById('clearTeamBtn').classList.add('hidden');
-    document.getElementById('saveTeamBtn').classList.remove('hidden');
     initGame();
   }
 }
