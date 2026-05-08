@@ -947,6 +947,12 @@ img { display: block; }
   background: rgba(212,175,55,0.05);
   border-color: var(--gold-dark);
 }
+.pack-btn-open-all {
+  background: rgba(212,175,55,0.08);
+  border-color: var(--gold-dark);
+  color: var(--gold-light);
+  font-weight: 600;
+}
 
 /* Pack selector — Platinum pack */
 .pack-btn-platinum {

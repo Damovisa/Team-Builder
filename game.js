@@ -221,6 +221,21 @@ function renderPackSelector() {
     selector.appendChild(btn);
   }
 
+  // "Open All" button — visible when any packs are still unopened
+  if (!allOpened) {
+    const openAllBtn = document.createElement('button');
+    openAllBtn.className = 'pack-btn pack-btn-open-all';
+    openAllBtn.textContent = '📦 Open All';
+    openAllBtn.addEventListener('click', () => {
+      packOpened.fill(true);
+      currentPackIdx = ALL_PACKS_IDX;
+      renderPackSelector();
+      renderCurrentPack();
+      renderGameStatus();
+    });
+    selector.appendChild(openAllBtn);
+  }
+
   // "All" button — only after all packs are opened
   if (allOpened) {
     const allBtn = document.createElement('button');
