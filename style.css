@@ -1596,6 +1596,87 @@ img { display: block; }
   width: 100%;
   max-width: 700px;
 }
+
+/* ── Match Simulating Animation ── */
+.match-simulating {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  min-height: 400px;
+}
+.sim-ball {
+  font-size: 3rem;
+  animation: sim-bounce 0.6s ease-in-out infinite alternate;
+}
+@keyframes sim-bounce {
+  0%   { transform: translateY(0) rotate(0deg); }
+  100% { transform: translateY(-24px) rotate(180deg); }
+}
+.sim-text {
+  font-size: 1.2rem;
+  color: var(--text-secondary);
+  letter-spacing: 1px;
+}
+.sim-bar {
+  width: 200px;
+  height: 4px;
+  background: var(--bg-card);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.sim-bar-fill {
+  height: 100%;
+  background: var(--gold);
+  border-radius: 2px;
+  animation: sim-progress 3s linear forwards;
+}
+@keyframes sim-progress {
+  0%   { width: 0; }
+  100% { width: 100%; }
+}
+
+/* ── Goal Timeline ── */
+.result-timeline {
+  width: 100%;
+  max-width: 400px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 10px 16px;
+}
+.timeline-header {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 8px;
+}
+.timeline-empty {
+  text-align: center;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  padding: 6px 0;
+}
+.timeline-row {
+  display: flex;
+  align-items: center;
+  padding: 3px 0;
+  font-size: 0.8rem;
+}
+.timeline-user { justify-content: flex-start; }
+.timeline-chall { justify-content: flex-end; }
+.tl-icon { font-size: 0.9rem; }
+.tl-time {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  min-width: 42px;
+  text-align: center;
+}
+.tl-spacer { flex: 1; }
 .result-debug details {
   background: var(--bg-panel);
   border: 1px solid var(--border);

@@ -652,7 +652,7 @@ function renderChallengerPhase() {
 
   document.getElementById('playGameBtn').addEventListener('click', () => {
     const result = simulateMatch(team, challengerTeam, currentFormation);
-    renderMatchResult(result);
+    showMatchLoadingThenResult(result);
   });
 }
 
@@ -899,6 +899,62 @@ function simulateMatch(userTeam, challTeam, formation) {
 // MATCH RESULT UI
 // ────────────────────────────────────────────────────────────────
 
+/**
+ * Generate random goal times sorted chronologically.
+ * Goals can occur in minutes 1–90 plus stoppage time (90+1 to 90+5).
+ */
+function generateGoalTimes(count) {
+  if (count === 0) return [];
+  const times = [];
+  for (let i = 0; i < count; i++) {
+    const r = Math.random();
+    if (r < 0.08) {
+      // ~8% chance of stoppage time goal
+      times.push(90 + Math.ceil(Math.random() * 5));
+    } else {
+      times.push(Math.ceil(Math.random() * 90));
+    }
+  }
+  return times.sort((a, b) => a - b);
+}
+
+function formatGoalTime(minute) {
+  return minute > 90 ? `90+${minute - 90}'` : `${minute}'`;
+}
+
+function buildGoalTimeline(userGoals, challGoals) {
+  const userTimes = generateGoalTimes(userGoals);
+  const challTimes = generateGoalTimes(challGoals);
+  if (userGoals === 0 && challGoals === 0) {
+    return '<div class="timeline-empty">No goals scored</div>';
+  }
+  // Merge into a single timeline sorted by time
+  const events = [];
+  userTimes.forEach(t => events.push({ time: t, side: 'user', label: '⚽' }));
+  challTimes.forEach(t => events.push({ time: t, side: 'chall', label: '🎯' }));
+  events.sort((a, b) => a.time - b.time);
+
+  return events.map(e => {
+    const timeStr = formatGoalTime(e.time);
+    if (e.side === 'user') {
+      return `<div class="timeline-row timeline-user"><span class="tl-icon">${e.label}</span><span class="tl-time">${timeStr}</span><span class="tl-spacer"></span></div>`;
+    }
+    return `<div class="timeline-row timeline-chall"><span class="tl-spacer"></span><span class="tl-time">${timeStr}</span><span class="tl-icon">${e.label}</span></div>`;
+  }).join('');
+}
+
+/** Show a "simulating" animation for 3 seconds, then reveal the result. */
+function showMatchLoadingThenResult(result) {
+  const teamPanel = document.querySelector('.team-panel');
+  teamPanel.innerHTML = `
+    <div class="match-simulating">
+      <div class="sim-ball">⚽</div>
+      <div class="sim-text">Simulating match…</div>
+      <div class="sim-bar"><div class="sim-bar-fill"></div></div>
+    </div>`;
+  setTimeout(() => renderMatchResult(result), 3000);
+}
+
 function renderMatchResult({ userGoals, challGoals, userDebug, challDebug }) {
   const teamPanel = document.querySelector('.team-panel');
   const userStats = calcTeamAvgStats(team);
@@ -938,6 +994,11 @@ function renderMatchResult({ userGoals, challGoals, userDebug, challDebug }) {
           <span class="result-team-label">Challenger</span>
           <span class="result-ovr-badge">${challStats.ovr}</span>
         </div>
+      </div>
+
+      <div class="result-timeline">
+        <div class="timeline-header">Goal Timeline</div>
+        ${buildGoalTimeline(userGoals, challGoals)}
       </div>
 
       <div class="result-pitches">
@@ -981,7 +1042,7 @@ function renderMatchResult({ userGoals, challGoals, userDebug, challDebug }) {
       </div>
 
       <div class="result-debug">
-        <details open>
+        <details>
           <summary>Match Calculation Details</summary>
           <div class="debug-columns">
             <div class="debug-col">
