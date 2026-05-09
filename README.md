@@ -44,6 +44,30 @@ Search the full FC26 database and add any player you want — no restrictions.
 
 ---
 
+## Screenshots
+
+### Desktop (1440×900)
+| Start screen | Main view |
+|---|---|
+| ![Desktop – start screen](docs/screenshots/desktop-team-select.png) | ![Desktop – main view](docs/screenshots/desktop-main.png) |
+
+### iPad landscape (1024×768)
+| Start screen | Main view |
+|---|---|
+| ![iPad landscape – start screen](docs/screenshots/ipad-landscape-team-select.png) | ![iPad landscape – main view](docs/screenshots/ipad-landscape-main.png) |
+
+### iPad portrait (768×1024)
+| Start screen | Main view |
+|---|---|
+| ![iPad portrait – start screen](docs/screenshots/ipad-portrait-team-select.png) | ![iPad portrait – main view](docs/screenshots/ipad-portrait-main.png) |
+
+### Phone (390×844)
+| Start screen | Main view |
+|---|---|
+| ![Phone – start screen](docs/screenshots/phone-team-select.png) | ![Phone – main view](docs/screenshots/phone-main.png) |
+
+---
+
 ## Quick Start
 
 1. Open `index.html` in any modern browser — no server, no setup needed.

@@ -230,6 +230,71 @@ function renderPitch() {
       afterTeamChange();
     });
 
+    // Touch drag-and-drop (for iPad / touch screens)
+    if (isFilled) {
+      let touchStartX = 0, touchStartY = 0, hasDragStarted = false;
+
+      slotEl.addEventListener('touchstart', (e) => {
+        const touch = e.touches[0];
+        touchStartX = touch.clientX;
+        touchStartY = touch.clientY;
+        hasDragStarted = false;
+      }, { passive: true });
+
+      slotEl.addEventListener('touchmove', (e) => {
+        const touch = e.touches[0];
+        const dx = touch.clientX - touchStartX;
+        const dy = touch.clientY - touchStartY;
+
+        if (!hasDragStarted && Math.hypot(dx, dy) > 10) {
+          hasDragStarted = true;
+          dragSourceIdx = idx;
+          slotEl.classList.add('dragging');
+        }
+
+        if (hasDragStarted) {
+          e.preventDefault();
+          container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+          const pointEl = document.elementFromPoint(touch.clientX, touch.clientY);
+          const targetSlot = pointEl && pointEl.closest('.pitch-slot');
+          if (targetSlot && targetSlot !== slotEl) {
+            targetSlot.classList.add('drag-over');
+          }
+        }
+      }, { passive: false });
+
+      slotEl.addEventListener('touchend', (e) => {
+        // If the touch didn't exceed the drag threshold, let the existing click
+        // handler (defined earlier in renderPitch) process this as a normal tap.
+        if (!hasDragStarted) return;
+        e.preventDefault(); // prevent the synthetic click after a drag gesture
+
+        const touch = e.changedTouches[0];
+        const pointEl = document.elementFromPoint(touch.clientX, touch.clientY);
+        const targetSlot = pointEl && pointEl.closest('.pitch-slot');
+
+        slotEl.classList.remove('dragging');
+        container.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+
+        if (targetSlot && targetSlot !== slotEl) {
+          const targetIdx = parseInt(targetSlot.dataset.idx);
+          if (!isNaN(targetIdx) && targetIdx !== idx) {
+            const src = dragSourceIdx;
+            dragSourceIdx = null;
+            hasDragStarted = false;
+            const tmp = team[src];
+            team[src] = team[targetIdx];
+            team[targetIdx] = tmp;
+            afterTeamChange();
+            return;
+          }
+        }
+
+        dragSourceIdx = null;
+        hasDragStarted = false;
+      }, { passive: false });
+    }
+
     container.appendChild(slotEl);
   });
 }
