@@ -22,6 +22,8 @@ let platinumPackIdx = -1; // Which pack is the platinum pack
 
 // ── Challenger phase state ──
 let challengerTeam = new Array(11).fill(null);
+let challengerFormation = null; // separate formation for away team (null = use currentFormation)
+let matchTeamNames = null; // { home, away } for saved-teams matches
 
 // ────────────────────────────────────────────────────────────────
 // INIT GAME
@@ -482,6 +484,10 @@ function gameAddToTeam(player) {
 // ────────────────────────────────────────────────────────────────
 
 async function initChallenger() {
+  // Reset saved-teams-match state
+  matchTeamNames = null;
+  challengerFormation = null;
+
   // Transition: hide game panel, go full width
   document.getElementById('gamePanel').classList.add('hidden');
   document.getElementById('appMain').classList.add('challenger-phase');
@@ -571,6 +577,12 @@ function buildChallengerTeam(pool, formation) {
   return result;
 }
 
+function getHomeLabel() { return matchTeamNames ? matchTeamNames.home : 'Your Team'; }
+function getAwayLabel() { return matchTeamNames ? matchTeamNames.away : 'Challenger'; }
+function getHomeIcon() { return matchTeamNames ? '🏠' : '⚽'; }
+function getAwayIcon() { return matchTeamNames ? '✈️' : '🎯'; }
+function getChallFormation() { return challengerFormation || currentFormation; }
+
 function renderChallengerPhase() {
   const teamPanel = document.querySelector('.team-panel');
 
@@ -581,12 +593,12 @@ function renderChallengerPhase() {
   teamPanel.innerHTML = `
     <div class="match-header">
       <div class="match-team-name">
-        <span class="match-team-icon">⚽</span> Your Team
+        <span class="match-team-icon">${getHomeIcon()}</span> ${esc(getHomeLabel())}
         <span class="match-ovr">${userStats.ovr}</span>
       </div>
       <div class="match-vs">VS</div>
       <div class="match-team-name">
-        <span class="match-team-icon">🎯</span> Challenger
+        <span class="match-team-icon">${getAwayIcon()}</span> ${esc(getAwayLabel())}
         <span class="match-ovr">${challStats.ovr}</span>
       </div>
     </div>
@@ -648,10 +660,10 @@ function renderChallengerPhase() {
     </div>`;
 
   renderMatchPitch('userMatchSlots', team, currentFormation);
-  renderMatchPitch('challengerMatchSlots', challengerTeam, currentFormation);
+  renderMatchPitch('challengerMatchSlots', challengerTeam, getChallFormation());
 
   document.getElementById('playGameBtn').addEventListener('click', () => {
-    const result = simulateMatch(team, challengerTeam, currentFormation);
+    const result = simulateMatch(team, challengerTeam, currentFormation, challengerFormation);
     showMatchLoadingThenResult(result);
   });
 }
@@ -880,9 +892,10 @@ function poissonRandom(lambda) {
  * Simulate a full match between two teams.
  * Returns { userGoals, challGoals }
  */
-function simulateMatch(userTeam, challTeam, formation) {
+function simulateMatch(userTeam, challTeam, formation, challFormation) {
+  const cf = challFormation || formation;
   const userGroups = categoriseBySlot(userTeam, formation);
-  const challGroups = categoriseBySlot(challTeam, formation);
+  const challGroups = categoriseBySlot(challTeam, cf);
 
   const userResult = calcGoalsForTeam(userGroups, challGroups);
   const challResult = calcGoalsForTeam(challGroups, userGroups);
@@ -940,21 +953,24 @@ function pickScorer(teamArr, formation) {
   return candidates[Math.floor(Math.random() * candidates.length)];
 }
 
-function buildGoalTimeline(userGoals, challGoals, userTeam, challTeam, formation) {
+function buildGoalTimeline(userGoals, challGoals, userTeam, challTeam, formation, challFormation) {
+  const cf = challFormation || formation;
   const userTimes = generateGoalTimes(userGoals);
   const challTimes = generateGoalTimes(challGoals);
   if (userGoals === 0 && challGoals === 0) {
     return '<div class="timeline-empty">No goals scored</div>';
   }
+  const homeIcon = getHomeIcon();
+  const awayIcon = getAwayIcon();
   // Merge into a single timeline sorted by time
   const events = [];
   userTimes.forEach(t => {
     const scorer = pickScorer(userTeam, formation);
-    events.push({ time: t, side: 'user', label: '⚽', scorer });
+    events.push({ time: t, side: 'user', label: homeIcon, scorer });
   });
   challTimes.forEach(t => {
-    const scorer = pickScorer(challTeam, formation);
-    events.push({ time: t, side: 'chall', label: '🎯', scorer });
+    const scorer = pickScorer(challTeam, cf);
+    events.push({ time: t, side: 'chall', label: awayIcon, scorer });
   });
   events.sort((a, b) => a.time - b.time);
 
@@ -984,13 +1000,18 @@ function renderMatchResult({ userGoals, challGoals, userDebug, challDebug }) {
   const teamPanel = document.querySelector('.team-panel');
   const userStats = calcTeamAvgStats(team);
   const challStats = calcTeamAvgStats(challengerTeam);
+  const homeLabel = getHomeLabel();
+  const awayLabel = getAwayLabel();
+  const homeIcon = getHomeIcon();
+  const awayIcon = getAwayIcon();
+  const cf = getChallFormation();
 
   let resultLabel, resultClass;
   if (userGoals > challGoals) {
-    resultLabel = 'Victory!';
+    resultLabel = matchTeamNames ? `${homeLabel} wins!` : 'Victory!';
     resultClass = 'result-win';
   } else if (userGoals < challGoals) {
-    resultLabel = 'Defeat';
+    resultLabel = matchTeamNames ? `${awayLabel} wins!` : 'Defeat';
     resultClass = 'result-loss';
   } else {
     resultLabel = 'Draw';
@@ -1000,13 +1021,13 @@ function renderMatchResult({ userGoals, challGoals, userDebug, challDebug }) {
   teamPanel.innerHTML = `
     <div class="match-result-screen">
       <div class="result-banner ${resultClass}">
-        <div class="result-label">${resultLabel}</div>
+        <div class="result-label">${esc(resultLabel)}</div>
       </div>
 
       <div class="result-scoreboard">
         <div class="result-side">
-          <span class="result-team-icon">⚽</span>
-          <span class="result-team-label">Your Team</span>
+          <span class="result-team-icon">${homeIcon}</span>
+          <span class="result-team-label">${esc(homeLabel)}</span>
           <span class="result-ovr-badge">${userStats.ovr}</span>
         </div>
         <div class="result-score">
@@ -1015,15 +1036,15 @@ function renderMatchResult({ userGoals, challGoals, userDebug, challDebug }) {
           <span class="result-goals">${challGoals}</span>
         </div>
         <div class="result-side">
-          <span class="result-team-icon">🎯</span>
-          <span class="result-team-label">Challenger</span>
+          <span class="result-team-icon">${awayIcon}</span>
+          <span class="result-team-label">${esc(awayLabel)}</span>
           <span class="result-ovr-badge">${challStats.ovr}</span>
         </div>
       </div>
 
       <div class="result-timeline">
         <div class="timeline-header">Goal Timeline</div>
-        ${buildGoalTimeline(userGoals, challGoals, team, challengerTeam, currentFormation)}
+        ${buildGoalTimeline(userGoals, challGoals, team, challengerTeam, currentFormation, cf)}
       </div>
 
       <div class="result-pitches">
@@ -1062,7 +1083,7 @@ function renderMatchResult({ userGoals, challGoals, userDebug, challDebug }) {
       </div>
 
       <div class="match-actions">
-        <button class="btn-primary match-play-btn" id="continueBtn">▶️ Continue</button>
+        <button class="btn-primary match-play-btn" id="continueBtn">${matchTeamNames ? '🔄 Rematch' : '▶️ Continue'}</button>
         <button class="btn-secondary match-play-btn" id="backToStartBtn">🏠 Back to Start</button>
       </div>
 
@@ -1071,11 +1092,11 @@ function renderMatchResult({ userGoals, challGoals, userDebug, challDebug }) {
           <summary>Match Calculation Details</summary>
           <div class="debug-columns">
             <div class="debug-col">
-              <h4>⚽ Your Team Attack</h4>
+              <h4>${homeIcon} ${esc(homeLabel)} Attack</h4>
               <div class="debug-row"><span>Forwards (${userDebug.fwdCount})</span><span>Shooting: ${userDebug.fwdShooting}</span></div>
               <div class="debug-row"><span>Midfield (${userDebug.midCount})</span><span>Creativity: ${userDebug.midCreativity}</span></div>
               <div class="debug-row highlight"><span>Attack Score</span><span>${userDebug.attackScore}</span></div>
-              <h4 style="margin-top:10px">🛡️ vs Challenger Defense</h4>
+              <h4 style="margin-top:10px">🛡️ vs ${esc(awayLabel)} Defense</h4>
               <div class="debug-row"><span>Defenders (${userDebug.defCount})</span><span>Def: ${userDebug.defRating}</span></div>
               <div class="debug-row"><span>Midfield Def</span><span>${userDebug.midDefense}</span></div>
               <div class="debug-row"><span>GK Rating</span><span>${userDebug.gkRating}</span></div>
@@ -1087,11 +1108,11 @@ function renderMatchResult({ userGoals, challGoals, userDebug, challDebug }) {
               <div class="debug-row highlight"><span>Actual Goals</span><span>${userGoals}</span></div>
             </div>
             <div class="debug-col">
-              <h4>🎯 Challenger Attack</h4>
+              <h4>${awayIcon} ${esc(awayLabel)} Attack</h4>
               <div class="debug-row"><span>Forwards (${challDebug.fwdCount})</span><span>Shooting: ${challDebug.fwdShooting}</span></div>
               <div class="debug-row"><span>Midfield (${challDebug.midCount})</span><span>Creativity: ${challDebug.midCreativity}</span></div>
               <div class="debug-row highlight"><span>Attack Score</span><span>${challDebug.attackScore}</span></div>
-              <h4 style="margin-top:10px">🛡️ vs Your Defense</h4>
+              <h4 style="margin-top:10px">🛡️ vs ${esc(homeLabel)} Defense</h4>
               <div class="debug-row"><span>Defenders (${challDebug.defCount})</span><span>Def: ${challDebug.defRating}</span></div>
               <div class="debug-row"><span>Midfield Def</span><span>${challDebug.midDefense}</span></div>
               <div class="debug-row"><span>GK Rating</span><span>${challDebug.gkRating}</span></div>
@@ -1108,12 +1129,20 @@ function renderMatchResult({ userGoals, challGoals, userDebug, challDebug }) {
     </div>`;
 
   renderMatchPitch('resultUserSlots', team, currentFormation);
-  renderMatchPitch('resultChallSlots', challengerTeam, currentFormation);
+  renderMatchPitch('resultChallSlots', challengerTeam, cf);
 
   document.getElementById('continueBtn').addEventListener('click', () => {
-    showToast('More packs coming soon!');
+    if (matchTeamNames) {
+      // For saved-teams matches, replay option
+      const result = simulateMatch(team, challengerTeam, currentFormation, challengerFormation);
+      showMatchLoadingThenResult(result);
+    } else {
+      showToast('More packs coming soon!');
+    }
   });
   document.getElementById('backToStartBtn').addEventListener('click', () => {
+    matchTeamNames = null;
+    challengerFormation = null;
     location.reload();
   });
 }
@@ -1129,4 +1158,14 @@ function buildStatsBarHTML(stats) {
       <div class="team-stat"><span class="tstat-label">DEF</span><span class="tstat-value">${stats.def}</span></div>
       <div class="team-stat"><span class="tstat-label">PHY</span><span class="tstat-value">${stats.phy}</span></div>
     </div>`;
+}
+
+// ────────────────────────────────────────────────────────────────
+// SAVED TEAMS MATCH — direct to challenger phase (no pack opening)
+// ────────────────────────────────────────────────────────────────
+function renderSavedTeamsChallenger() {
+  document.getElementById('gamePanel').classList.add('hidden');
+  document.getElementById('appMain').classList.add('challenger-phase');
+  document.querySelector('.team-controls').classList.add('hidden');
+  renderChallengerPhase();
 }

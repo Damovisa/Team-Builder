@@ -40,6 +40,8 @@ img { display: block; }
 .app-header {
   display: flex;
   align-items: center;
+  justify-content: flex-start;
+  gap: 10px;
   padding: 10px 20px;
   background: rgba(0,0,0,0.5);
   border-bottom: 1px solid var(--border);
@@ -48,6 +50,20 @@ img { display: block; }
   top: 0;
   z-index: 100;
   height: 48px;
+}
+.header-home-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: color .2s, border-color .2s;
+}
+.header-home-btn:hover {
+  color: var(--gold-light);
+  border-color: var(--gold-dark);
 }
 .header-logo {
   display: flex;
@@ -952,6 +968,158 @@ img { display: block; }
 }
 .saved-team-delete:hover { background: rgba(192,57,43,0.2); }
 
+/* Play Match button in saved teams section */
+.start-btn-match {
+  margin-top: 16px;
+  width: 100%;
+}
+
+/* ════════════════════════════════════
+   TEAM SELECTION SCREEN
+   ════════════════════════════════════ */
+.team-select-screen {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-dark);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  z-index: 100;
+  overflow-y: auto;
+}
+.team-select-content {
+  width: 100%;
+  max-width: 700px;
+  padding: 32px 24px;
+  padding-top: 64px;
+  text-align: center;
+}
+.team-select-back {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: color .2s, border-color .2s;
+}
+.team-select-back:hover {
+  color: var(--gold-light);
+  border-color: var(--gold-dark);
+}
+.team-select-title {
+  font-size: 1.5rem;
+  color: var(--gold-light);
+  margin-bottom: 28px;
+}
+.team-select-columns {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+}
+.team-select-col {
+  flex: 1;
+  min-width: 0;
+}
+.team-select-vs {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: var(--text-muted);
+  align-self: center;
+  padding-top: 36px;
+}
+.team-select-col-label {
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: var(--text-secondary);
+}
+.home-label { color: #5dade2; }
+.away-label { color: #e06060; }
+.team-select-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+.team-select-card {
+  padding: 12px 16px;
+  background: var(--bg-panel);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .18s, background .18s;
+}
+.team-select-card:hover {
+  border-color: var(--gold-dark);
+  background: rgba(212,175,55,0.04);
+}
+.team-select-card.selected {
+  border-color: var(--gold);
+  background: rgba(212,175,55,0.1);
+  box-shadow: 0 0 12px rgba(212,175,55,0.15);
+}
+
+/* Roster preview inside selected team card */
+.roster-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.roster-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 52px;
+}
+.roster-card-img {
+  width: 48px;
+  height: auto;
+  border-radius: 3px;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,.5));
+}
+.roster-card-fallback {
+  width: 48px;
+  height: 62px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--gold-light);
+}
+.roster-name {
+  font-size: 0.6rem;
+  color: var(--text-primary);
+  margin-top: 2px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 52px;
+}
+.roster-pos {
+  font-size: 0.55rem;
+  color: var(--text-secondary);
+}
+.team-select-start {
+  margin-top: 28px;
+  padding: 14px 40px;
+  font-size: 1.05rem;
+}
+
 /* ════════════════════════════════════
    GAME PANEL (pack opening mode)
    ════════════════════════════════════ */
@@ -1313,6 +1481,11 @@ img { display: block; }
    ════════════════════════════════════ */
 .app-main.challenger-phase {
   grid-template-columns: 1fr;
+  height: auto;
+  min-height: calc(100vh - 48px);
+}
+.app-main.challenger-phase .team-panel {
+  overflow-y: auto;
 }
 
 .challenger-loading {

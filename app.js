@@ -503,6 +503,7 @@ function loadSavedTeamAndChallenge(index) {
 function renderSavedTeamsOnStart() {
   const section = document.getElementById('savedTeamsSection');
   const list = document.getElementById('savedTeamsList');
+  const matchBtn = document.getElementById('btnPlaySavedMatch');
   const saved = loadSavedTeams();
 
   if (saved.length === 0) {
@@ -511,6 +512,9 @@ function renderSavedTeamsOnStart() {
   }
   section.classList.remove('hidden');
   list.innerHTML = '';
+
+  // Show "Play Match" button only when ≥2 teams exist
+  matchBtn.classList.toggle('hidden', saved.length < 2);
 
   saved.forEach((entry, idx) => {
     const filled = (entry.team || []).filter(Boolean).length;
@@ -539,6 +543,112 @@ function renderSavedTeamsOnStart() {
     });
     list.appendChild(card);
   });
+}
+
+// ────────────────────────────────────────────────────────────────
+// TEAM SELECTION SCREEN (saved-teams match)
+// ────────────────────────────────────────────────────────────────
+let selectedHomeIdx = null;
+let selectedAwayIdx = null;
+
+function showTeamSelectScreen() {
+  selectedHomeIdx = null;
+  selectedAwayIdx = null;
+  document.getElementById('startScreen').classList.add('hidden');
+  document.getElementById('teamSelectScreen').classList.remove('hidden');
+  renderTeamSelectLists();
+  updateTeamSelectStartBtn();
+}
+
+function hideTeamSelectScreen() {
+  document.getElementById('teamSelectScreen').classList.add('hidden');
+  document.getElementById('startScreen').classList.remove('hidden');
+}
+
+function renderTeamSelectLists() {
+  const saved = loadSavedTeams();
+  const homeList = document.getElementById('homeTeamList');
+  const awayList = document.getElementById('awayTeamList');
+  homeList.innerHTML = '';
+  awayList.innerHTML = '';
+
+  saved.forEach((entry, idx) => {
+    homeList.appendChild(buildSelectCard(entry, idx, 'home'));
+    awayList.appendChild(buildSelectCard(entry, idx, 'away'));
+  });
+}
+
+function buildSelectCard(entry, idx, side) {
+  const filled = (entry.team || []).filter(Boolean).length;
+  const avgOvr = filled > 0
+    ? Math.round(entry.team.filter(Boolean).reduce((s, p) => s + (parseInt(p.ovr) || 0), 0) / filled)
+    : '—';
+
+  const card = document.createElement('div');
+  const isSelected = (side === 'home' && selectedHomeIdx === idx) ||
+                     (side === 'away' && selectedAwayIdx === idx);
+  card.className = `team-select-card${isSelected ? ' selected' : ''}`;
+
+  // Build player roster preview
+  const players = (entry.team || []).filter(Boolean);
+  const rosterHTML = players.map(p => `
+    <div class="roster-player">
+      <img class="roster-card-img" src="${esc(p.card)}" alt="${esc(p.name)}"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <span class="roster-card-fallback" style="display:none">${esc(p.ovr)}</span>
+      <span class="roster-name">${esc(shortName(p.name))}</span>
+      <span class="roster-pos">${esc(p.position)}</span>
+    </div>`).join('');
+
+  card.innerHTML = `
+    <div class="saved-team-name">${esc(entry.name)}</div>
+    <div class="saved-team-meta">${entry.formation} · ${filled}/11 · OVR ${avgOvr}</div>
+    ${isSelected && players.length ? `<div class="roster-preview">${rosterHTML}</div>` : ''}`;
+
+  card.addEventListener('click', () => {
+    if (side === 'home') selectedHomeIdx = idx;
+    else selectedAwayIdx = idx;
+    renderTeamSelectLists();
+    updateTeamSelectStartBtn();
+  });
+  return card;
+}
+
+function updateTeamSelectStartBtn() {
+  const btn = document.getElementById('teamSelectStartBtn');
+  const ready = selectedHomeIdx !== null && selectedAwayIdx !== null && selectedHomeIdx !== selectedAwayIdx;
+  btn.classList.toggle('hidden', !ready);
+}
+
+function startSavedTeamsMatch() {
+  if (selectedHomeIdx === null || selectedAwayIdx === null) return;
+  const saved = loadSavedTeams();
+  const home = saved[selectedHomeIdx];
+  const away = saved[selectedAwayIdx];
+  if (!home || !away) return;
+
+  // Set up global state
+  for (let i = 0; i < 11; i++) team[i] = home.team[i] || null;
+  currentFormation = home.formation || '4-3-3';
+  document.getElementById('formationSelect').value = currentFormation;
+
+  challengerTeam = new Array(11);
+  for (let i = 0; i < 11; i++) challengerTeam[i] = away.team[i] || null;
+  challengerFormation = away.formation || '4-3-3';
+
+  matchTeamNames = { home: home.name, away: away.name };
+
+  // Transition to match view
+  gameMode = 'game';
+  document.getElementById('teamSelectScreen').classList.add('hidden');
+  document.getElementById('appMain').classList.remove('hidden');
+  document.getElementById('searchPanel').classList.add('hidden');
+  document.getElementById('gamePanel').classList.add('hidden');
+  document.getElementById('clearTeamBtn').classList.add('hidden');
+  document.getElementById('saveTeamBtn').classList.add('hidden');
+
+  afterTeamChange();
+  renderSavedTeamsChallenger();
 }
 
 // ────────────────────────────────────────────────────────────────
@@ -575,6 +685,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Render saved teams on start screen
   renderSavedTeamsOnStart();
+
+  // Play Match (saved teams) button
+  document.getElementById('btnPlaySavedMatch').addEventListener('click', showTeamSelectScreen);
+  document.getElementById('teamSelectBack').addEventListener('click', hideTeamSelectScreen);
+  document.getElementById('teamSelectStartBtn').addEventListener('click', startSavedTeamsMatch);
+
+  // Home button in header
+  document.getElementById('headerHomeBtn').addEventListener('click', () => location.reload());
 
   // Save team button
   document.getElementById('saveTeamBtn').addEventListener('click', saveCurrentTeam);

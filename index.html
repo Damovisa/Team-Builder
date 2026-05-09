@@ -31,12 +31,38 @@
       <div class="saved-teams-section hidden" id="savedTeamsSection">
         <h3 class="saved-teams-heading">Saved Teams</h3>
         <div class="saved-teams-list" id="savedTeamsList"></div>
+        <button class="start-btn start-btn-match hidden" id="btnPlaySavedMatch">
+          <span class="start-btn-icon">⚔️</span>
+          <span class="start-btn-label">Play Match</span>
+          <span class="start-btn-desc">Pick two saved teams to play</span>
+        </button>
       </div>
+    </div>
+  </div>
+
+  <!-- ===== TEAM SELECT SCREEN (saved-teams match) ===== -->
+  <div class="team-select-screen hidden" id="teamSelectScreen">
+    <div class="team-select-content">
+      <button class="team-select-back" id="teamSelectBack">← Back</button>
+      <h2 class="team-select-title">⚔️ Choose Your Teams</h2>
+      <div class="team-select-columns">
+        <div class="team-select-col">
+          <h3 class="team-select-col-label home-label">🏠 Home</h3>
+          <div class="team-select-list" id="homeTeamList"></div>
+        </div>
+        <div class="team-select-vs">VS</div>
+        <div class="team-select-col">
+          <h3 class="team-select-col-label away-label">✈️ Away</h3>
+          <div class="team-select-list" id="awayTeamList"></div>
+        </div>
+      </div>
+      <button class="btn-primary team-select-start hidden" id="teamSelectStartBtn">⚽ Start Match</button>
     </div>
   </div>
 
   <!-- ===== HEADER ===== -->
   <header class="app-header">
+    <button class="header-home-btn" id="headerHomeBtn" title="Back to Start">🏠</button>
     <div class="header-logo">
       <span class="logo-icon">⚽</span>
       <span class="logo-text">FC26 Team Builder</span>
