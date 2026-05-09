@@ -691,6 +691,9 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('teamSelectBack').addEventListener('click', hideTeamSelectScreen);
   document.getElementById('teamSelectStartBtn').addEventListener('click', startSavedTeamsMatch);
 
+  // Home button in header
+  document.getElementById('headerHomeBtn').addEventListener('click', () => location.reload());
+
   // Save team button
   document.getElementById('saveTeamBtn').addEventListener('click', saveCurrentTeam);
 
