@@ -966,14 +966,16 @@ img { display: block; }
   inset: 0;
   background: var(--bg-dark);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   z-index: 100;
+  overflow-y: auto;
 }
 .team-select-content {
   width: 100%;
   max-width: 700px;
   padding: 32px 24px;
+  padding-top: 64px;
   text-align: center;
 }
 .team-select-back {
