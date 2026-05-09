@@ -1676,6 +1676,12 @@ img { display: block; }
   min-width: 42px;
   text-align: center;
 }
+.tl-scorer {
+  font-size: 0.78rem;
+  color: var(--text-primary);
+  font-weight: 500;
+  padding: 0 6px;
+}
 .tl-spacer { flex: 1; }
 .result-debug details {
   background: var(--bg-panel);

@@ -922,7 +922,25 @@ function formatGoalTime(minute) {
   return minute > 90 ? `90+${minute - 90}'` : `${minute}'`;
 }
 
-function buildGoalTimeline(userGoals, challGoals) {
+/**
+ * Pick a random goal scorer from a team, weighted by position.
+ * Forwards score ~60%, midfielders ~30%, defenders ~10%.
+ */
+function pickScorer(teamArr, formation) {
+  const slots = FORMATIONS[formation];
+  const candidates = [];
+  for (let i = 0; i < 11; i++) {
+    const player = teamArr[i];
+    if (!player) continue;
+    const group = posGroup(slots[i].pos);
+    const weight = group === 'FWD' ? 6 : group === 'MID' ? 3 : group === 'GK' ? 0 : 1;
+    for (let w = 0; w < weight; w++) candidates.push(player);
+  }
+  if (candidates.length === 0) return null;
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
+function buildGoalTimeline(userGoals, challGoals, userTeam, challTeam, formation) {
   const userTimes = generateGoalTimes(userGoals);
   const challTimes = generateGoalTimes(challGoals);
   if (userGoals === 0 && challGoals === 0) {
@@ -930,16 +948,23 @@ function buildGoalTimeline(userGoals, challGoals) {
   }
   // Merge into a single timeline sorted by time
   const events = [];
-  userTimes.forEach(t => events.push({ time: t, side: 'user', label: '⚽' }));
-  challTimes.forEach(t => events.push({ time: t, side: 'chall', label: '🎯' }));
+  userTimes.forEach(t => {
+    const scorer = pickScorer(userTeam, formation);
+    events.push({ time: t, side: 'user', label: '⚽', scorer });
+  });
+  challTimes.forEach(t => {
+    const scorer = pickScorer(challTeam, formation);
+    events.push({ time: t, side: 'chall', label: '🎯', scorer });
+  });
   events.sort((a, b) => a.time - b.time);
 
   return events.map(e => {
     const timeStr = formatGoalTime(e.time);
+    const name = e.scorer ? esc(shortName(e.scorer.name)) : '?';
     if (e.side === 'user') {
-      return `<div class="timeline-row timeline-user"><span class="tl-icon">${e.label}</span><span class="tl-time">${timeStr}</span><span class="tl-spacer"></span></div>`;
+      return `<div class="timeline-row timeline-user"><span class="tl-icon">${e.label}</span><span class="tl-scorer">${name}</span><span class="tl-time">${timeStr}</span><span class="tl-spacer"></span></div>`;
     }
-    return `<div class="timeline-row timeline-chall"><span class="tl-spacer"></span><span class="tl-time">${timeStr}</span><span class="tl-icon">${e.label}</span></div>`;
+    return `<div class="timeline-row timeline-chall"><span class="tl-spacer"></span><span class="tl-time">${timeStr}</span><span class="tl-scorer">${name}</span><span class="tl-icon">${e.label}</span></div>`;
   }).join('');
 }
 
@@ -998,7 +1023,7 @@ function renderMatchResult({ userGoals, challGoals, userDebug, challDebug }) {
 
       <div class="result-timeline">
         <div class="timeline-header">Goal Timeline</div>
-        ${buildGoalTimeline(userGoals, challGoals)}
+        ${buildGoalTimeline(userGoals, challGoals, team, challengerTeam, currentFormation)}
       </div>
 
       <div class="result-pitches">
