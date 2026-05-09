@@ -1062,7 +1062,7 @@ function renderMatchResult({ userGoals, challGoals, userDebug, challDebug }) {
       </div>
 
       <div class="match-actions">
-        <button class="btn-primary match-play-btn" id="playAgainBtn">🔄 Play Again</button>
+        <button class="btn-primary match-play-btn" id="continueBtn">▶️ Continue</button>
         <button class="btn-secondary match-play-btn" id="backToStartBtn">🏠 Back to Start</button>
       </div>
 
@@ -1110,8 +1110,8 @@ function renderMatchResult({ userGoals, challGoals, userDebug, challDebug }) {
   renderMatchPitch('resultUserSlots', team, currentFormation);
   renderMatchPitch('resultChallSlots', challengerTeam, currentFormation);
 
-  document.getElementById('playAgainBtn').addEventListener('click', () => {
-    initChallenger();
+  document.getElementById('continueBtn').addEventListener('click', () => {
+    showToast('More packs coming soon!');
   });
   document.getElementById('backToStartBtn').addEventListener('click', () => {
     location.reload();
