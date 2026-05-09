@@ -1414,6 +1414,10 @@ img { display: block; }
    ════════════════════════════════════ */
 .app-main.challenger-phase {
   grid-template-columns: 1fr;
+  overflow-y: auto;
+}
+.app-main.challenger-phase .team-panel {
+  overflow: visible;
 }
 
 .challenger-loading {
