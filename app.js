@@ -588,9 +588,22 @@ function buildSelectCard(entry, idx, side) {
   const isSelected = (side === 'home' && selectedHomeIdx === idx) ||
                      (side === 'away' && selectedAwayIdx === idx);
   card.className = `team-select-card${isSelected ? ' selected' : ''}`;
+
+  // Build player roster preview
+  const players = (entry.team || []).filter(Boolean);
+  const rosterHTML = players.map(p => `
+    <div class="roster-player">
+      <img class="roster-card-img" src="${esc(p.card)}" alt="${esc(p.name)}"
+           onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <span class="roster-card-fallback" style="display:none">${esc(p.ovr)}</span>
+      <span class="roster-name">${esc(shortName(p.name))}</span>
+      <span class="roster-pos">${esc(p.position)}</span>
+    </div>`).join('');
+
   card.innerHTML = `
     <div class="saved-team-name">${esc(entry.name)}</div>
-    <div class="saved-team-meta">${entry.formation} · ${filled}/11 · OVR ${avgOvr}</div>`;
+    <div class="saved-team-meta">${entry.formation} · ${filled}/11 · OVR ${avgOvr}</div>
+    ${isSelected && players.length ? `<div class="roster-preview">${rosterHTML}</div>` : ''}`;
 
   card.addEventListener('click', () => {
     if (side === 'home') selectedHomeIdx = idx;

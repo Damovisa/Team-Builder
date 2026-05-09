@@ -1047,6 +1047,55 @@ img { display: block; }
   background: rgba(212,175,55,0.1);
   box-shadow: 0 0 12px rgba(212,175,55,0.15);
 }
+
+/* Roster preview inside selected team card */
+.roster-preview {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.roster-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 52px;
+}
+.roster-card-img {
+  width: 48px;
+  height: auto;
+  border-radius: 3px;
+  filter: drop-shadow(0 1px 3px rgba(0,0,0,.5));
+}
+.roster-card-fallback {
+  width: 48px;
+  height: 62px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--gold-light);
+}
+.roster-name {
+  font-size: 0.6rem;
+  color: var(--text-primary);
+  margin-top: 2px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 52px;
+}
+.roster-pos {
+  font-size: 0.55rem;
+  color: var(--text-secondary);
+}
 .team-select-start {
   margin-top: 28px;
   padding: 14px 40px;
