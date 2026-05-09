@@ -654,6 +654,7 @@ img { display: block; }
   z-index: 3;
 }
 .pitch-slot:hover .slot-remove-btn { opacity: 1; }
+.pitch-slot.selected .slot-remove-btn { opacity: 1; }
 
 /* Player detail panel (right of pitch) */
 .pitch-detail-row {
@@ -800,6 +801,21 @@ img { display: block; }
 /* ════════════════════════════════════
    RESPONSIVE
    ════════════════════════════════════ */
+
+/* ── iPad landscape & medium screens ── */
+@media (min-width: 801px) and (max-width: 1100px) {
+  .app-main {
+    grid-template-columns: 300px 1fr;
+  }
+  .player-detail {
+    width: 220px;
+  }
+  .slot-card-wrap { width: 82px; }
+  .slot-card-img  { width: 82px; }
+  .slot-card-fallback { width: 82px; height: 110px; }
+}
+
+/* ── Portrait / small screens (≤ 800px) ── */
 @media (max-width: 800px) {
   .app-main {
     grid-template-columns: 1fr;
@@ -812,8 +828,108 @@ img { display: block; }
     border-right: none;
     border-bottom: 1px solid var(--border);
   }
-  .team-panel { min-height: 600px; }
-  .pitch-wrapper { padding: 8px; }
+  .team-panel {
+    min-height: 0;
+    overflow: visible;
+  }
+  .pitch-wrapper {
+    padding: 8px;
+    height: auto;
+    flex: none;
+  }
+  /* Pitch: switch from height-based to width-based sizing */
+  .pitch {
+    height: auto;
+    width: min(90%, 400px);
+    max-height: none;
+  }
+
+  /* Stack player detail below pitch on narrow screens */
+  .pitch-detail-row {
+    flex-direction: column;
+    overflow: visible;
+    flex: none;
+  }
+  .player-detail {
+    width: 100%;
+    border-left: none;
+    border-top: 1px solid var(--border);
+    max-height: 220px;
+    flex-shrink: 0;
+    overflow-y: auto;
+  }
+}
+
+/* ── Touch / pointer-coarse devices (tablets, phones) ── */
+@media (pointer: coarse) {
+  /* Remove button: always visible on filled slots (no hover needed) */
+  .pitch-slot.filled .slot-remove-btn {
+    opacity: 0.75;
+    width: 22px;
+    height: 22px;
+    font-size: 0.65rem;
+  }
+
+  /* Larger touch targets for tab buttons */
+  .tab-btn {
+    min-height: 36px;
+    padding: 6px 10px;
+    font-size: 0.8rem;
+  }
+
+  /* Bigger add-to-team button */
+  .rc-add-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 1.2rem;
+  }
+
+  /* Larger nav / action buttons */
+  .btn-nav, .btn-danger, .btn-save {
+    min-height: 38px;
+  }
+
+  /* Pack card tooltips are hover-only; hide on touch */
+  .pack-card-tooltip {
+    display: none !important;
+  }
+
+  /* Disable hover-scale on pack cards (iOS hover-on-tap leaves cards scaled) */
+  .pack-card:hover {
+    transform: none;
+  }
+
+  /* Disable sibling dimming on pack cards (requires active hover state) */
+  .pack-card-grid:hover > .pack-card:not(:hover) {
+    opacity: 1 !important;
+    filter: none;
+  }
+
+  /* Pitch slot: disable hover scale to avoid stuck zoom state on touch */
+  .pitch-slot:hover {
+    transform: translate(-50%, -50%);
+  }
+
+  /* Start screen: allow buttons to wrap on narrow touch screens */
+  .start-buttons {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
+/* ── Touch + portrait: stack team-select columns ── */
+@media (pointer: coarse) and (max-width: 800px) {
+  .team-select-columns {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .team-select-vs {
+    padding: 0;
+    align-self: center;
+  }
+  .team-select-list {
+    max-height: 200px;
+  }
 }
 
 /* ════════════════════════════════════
