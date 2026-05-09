@@ -1586,4 +1586,59 @@ img { display: block; }
   .result-goals {
     font-size: 2.2rem;
   }
+  .debug-columns {
+    flex-direction: column;
+  }
+}
+
+/* ── Match Debug Details ── */
+.result-debug {
+  width: 100%;
+  max-width: 700px;
+}
+.result-debug details {
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+.result-debug summary {
+  padding: 10px 16px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  user-select: none;
+}
+.result-debug summary:hover { color: var(--gold); }
+.debug-columns {
+  display: flex;
+  gap: 1px;
+  background: var(--border);
+}
+.debug-col {
+  flex: 1;
+  padding: 10px 14px 14px;
+  background: var(--bg-panel);
+}
+.debug-col h4 {
+  font-size: 0.75rem;
+  color: var(--gold);
+  margin-bottom: 6px;
+  letter-spacing: 0.3px;
+}
+.debug-row {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  padding: 2px 0;
+}
+.debug-row.highlight {
+  color: var(--text-primary);
+  font-weight: 600;
+  border-top: 1px solid var(--border);
+  margin-top: 2px;
+  padding-top: 4px;
 }

@@ -791,6 +791,7 @@ function avgStat(entries, fn) {
 /**
  * Calculate how many goals a team scores.
  * attackTeam attacks, defenseTeam defends.
+ * Returns { goals, debug } with detailed breakdown.
  */
 function calcGoalsForTeam(attackGroups, defenseGroups) {
   // ── Attack strength (from attacking team) ──
@@ -834,10 +835,33 @@ function calcGoalsForTeam(attackGroups, defenseGroups) {
   // ── Net advantage → expected goals ──
   const advantage = attackScore - defenseScore;
   // Base ~1.5 goals; scale advantage so ±40 diff → ±8 goals swing
-  const expectedGoals = Math.max(0.2, 1.5 + advantage * 0.18);
+  const baseExpected = 1.5 + advantage * 0.18;
+
+  // ── Random match momentum swing (±0.8) ──
+  const momentum = (Math.random() - 0.5) * 1.6;
+  const expectedGoals = Math.max(0.15, baseExpected + momentum);
 
   // ── Poisson-ish random goal generation ──
-  return poissonRandom(expectedGoals);
+  const goals = poissonRandom(expectedGoals);
+
+  return {
+    goals,
+    debug: {
+      fwdShooting: fwdShooting.toFixed(1),
+      midCreativity: midCreativity.toFixed(1),
+      attackScore: attackScore.toFixed(1),
+      defRating: defRating.toFixed(1),
+      midDefense: midDefense.toFixed(1),
+      gkRating: gkRating.toFixed(1),
+      defenseScore: defenseScore.toFixed(1),
+      advantage: advantage.toFixed(1),
+      momentum: momentum.toFixed(2),
+      expectedGoals: expectedGoals.toFixed(2),
+      fwdCount: attackGroups.fwd.length,
+      midCount: attackGroups.mid.length,
+      defCount: defenseGroups.def.length,
+    },
+  };
 }
 
 /** Generate a Poisson-distributed random integer. */
@@ -860,17 +884,22 @@ function simulateMatch(userTeam, challTeam, formation) {
   const userGroups = categoriseBySlot(userTeam, formation);
   const challGroups = categoriseBySlot(challTeam, formation);
 
-  const userGoals = calcGoalsForTeam(userGroups, challGroups);
-  const challGoals = calcGoalsForTeam(challGroups, userGroups);
+  const userResult = calcGoalsForTeam(userGroups, challGroups);
+  const challResult = calcGoalsForTeam(challGroups, userGroups);
 
-  return { userGoals, challGoals };
+  return {
+    userGoals: userResult.goals,
+    challGoals: challResult.goals,
+    userDebug: userResult.debug,
+    challDebug: challResult.debug,
+  };
 }
 
 // ────────────────────────────────────────────────────────────────
 // MATCH RESULT UI
 // ────────────────────────────────────────────────────────────────
 
-function renderMatchResult({ userGoals, challGoals }) {
+function renderMatchResult({ userGoals, challGoals, userDebug, challDebug }) {
   const teamPanel = document.querySelector('.team-panel');
   const userStats = calcTeamAvgStats(team);
   const challStats = calcTeamAvgStats(challengerTeam);
@@ -949,6 +978,46 @@ function renderMatchResult({ userGoals, challGoals }) {
       <div class="match-actions">
         <button class="btn-primary match-play-btn" id="playAgainBtn">🔄 Play Again</button>
         <button class="btn-secondary match-play-btn" id="backToStartBtn">🏠 Back to Start</button>
+      </div>
+
+      <div class="result-debug">
+        <details open>
+          <summary>Match Calculation Details</summary>
+          <div class="debug-columns">
+            <div class="debug-col">
+              <h4>⚽ Your Team Attack</h4>
+              <div class="debug-row"><span>Forwards (${userDebug.fwdCount})</span><span>Shooting: ${userDebug.fwdShooting}</span></div>
+              <div class="debug-row"><span>Midfield (${userDebug.midCount})</span><span>Creativity: ${userDebug.midCreativity}</span></div>
+              <div class="debug-row highlight"><span>Attack Score</span><span>${userDebug.attackScore}</span></div>
+              <h4 style="margin-top:10px">🛡️ vs Challenger Defense</h4>
+              <div class="debug-row"><span>Defenders (${userDebug.defCount})</span><span>Def: ${userDebug.defRating}</span></div>
+              <div class="debug-row"><span>Midfield Def</span><span>${userDebug.midDefense}</span></div>
+              <div class="debug-row"><span>GK Rating</span><span>${userDebug.gkRating}</span></div>
+              <div class="debug-row highlight"><span>Defense Score</span><span>${userDebug.defenseScore}</span></div>
+              <h4 style="margin-top:10px">📊 Result</h4>
+              <div class="debug-row"><span>Advantage</span><span>${userDebug.advantage}</span></div>
+              <div class="debug-row"><span>Momentum (rng)</span><span>${userDebug.momentum}</span></div>
+              <div class="debug-row highlight"><span>Expected Goals</span><span>${userDebug.expectedGoals}</span></div>
+              <div class="debug-row highlight"><span>Actual Goals</span><span>${userGoals}</span></div>
+            </div>
+            <div class="debug-col">
+              <h4>🎯 Challenger Attack</h4>
+              <div class="debug-row"><span>Forwards (${challDebug.fwdCount})</span><span>Shooting: ${challDebug.fwdShooting}</span></div>
+              <div class="debug-row"><span>Midfield (${challDebug.midCount})</span><span>Creativity: ${challDebug.midCreativity}</span></div>
+              <div class="debug-row highlight"><span>Attack Score</span><span>${challDebug.attackScore}</span></div>
+              <h4 style="margin-top:10px">🛡️ vs Your Defense</h4>
+              <div class="debug-row"><span>Defenders (${challDebug.defCount})</span><span>Def: ${challDebug.defRating}</span></div>
+              <div class="debug-row"><span>Midfield Def</span><span>${challDebug.midDefense}</span></div>
+              <div class="debug-row"><span>GK Rating</span><span>${challDebug.gkRating}</span></div>
+              <div class="debug-row highlight"><span>Defense Score</span><span>${challDebug.defenseScore}</span></div>
+              <h4 style="margin-top:10px">📊 Result</h4>
+              <div class="debug-row"><span>Advantage</span><span>${challDebug.advantage}</span></div>
+              <div class="debug-row"><span>Momentum (rng)</span><span>${challDebug.momentum}</span></div>
+              <div class="debug-row highlight"><span>Expected Goals</span><span>${challDebug.expectedGoals}</span></div>
+              <div class="debug-row highlight"><span>Actual Goals</span><span>${challGoals}</span></div>
+            </div>
+          </div>
+        </details>
       </div>
     </div>`;
 
