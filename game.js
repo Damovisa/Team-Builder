@@ -651,7 +651,8 @@ function renderChallengerPhase() {
   renderMatchPitch('challengerMatchSlots', challengerTeam, currentFormation);
 
   document.getElementById('playGameBtn').addEventListener('click', () => {
-    showToast('Match simulation coming soon!');
+    const result = simulateMatch(team, challengerTeam, currentFormation);
+    showMatchLoadingThenResult(result);
   });
 }
 
@@ -744,6 +745,377 @@ function calcTeamAvgStats(teamArr) {
     ovr: avg('ovr'), pac: avg('pac'), sho: avg('sho'),
     pas: avg('pas'), dri: avg('dri'), def: avg('def'), phy: avg('phy'),
   };
+}
+
+// ────────────────────────────────────────────────────────────────
+// MATCH SIMULATION
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Categorise team slots into positional groups based on formation slot position.
+ * Returns { gk: [...], def: [...], mid: [...], fwd: [...] }
+ * Each entry is { player, slotPos }.
+ */
+function categoriseBySlot(teamArr, formation) {
+  const groups = { gk: [], def: [], mid: [], fwd: [] };
+  const slots = FORMATIONS[formation];
+  for (let i = 0; i < 11; i++) {
+    const player = teamArr[i];
+    if (!player) continue;
+    const slotPos = slots[i].pos;
+    const group = posGroup(slotPos);
+    const key = group === 'GK' ? 'gk' : group === 'DEF' ? 'def' : group === 'FWD' ? 'fwd' : 'mid';
+    groups[key].push({ player, slotPos });
+  }
+  return groups;
+}
+
+/**
+ * Check whether a player is in their preferred position, an alternate, or out of position.
+ * Returns 'preferred' | 'alternate' | 'out'
+ */
+function positionFit(player, slotPos) {
+  if (player.position === slotPos) return 'preferred';
+  const alts = Array.isArray(player['alternative positions']) ? player['alternative positions'] : [];
+  if (alts.includes(slotPos)) return 'alternate';
+  return 'out';
+}
+
+function stat(player, key) { return parseInt(player[key]) || 0; }
+
+function avgStat(entries, fn) {
+  if (!entries.length) return 50;
+  return entries.reduce((sum, e) => sum + fn(e), 0) / entries.length;
+}
+
+/**
+ * Calculate how many goals a team scores.
+ * attackTeam attacks, defenseTeam defends.
+ * Returns { goals, debug } with detailed breakdown.
+ */
+function calcGoalsForTeam(attackGroups, defenseGroups) {
+  // ── Attack strength (from attacking team) ──
+  // Forwards: shooting, with position-fit adjustment
+  const fwdShooting = avgStat(attackGroups.fwd, ({ player, slotPos }) => {
+    let sho = stat(player, 'sho');
+    const fit = positionFit(player, slotPos);
+    if (fit === 'preferred') sho += 3;
+    else if (fit === 'out') sho -= 5;
+    return sho;
+  });
+
+  // Midfielders: passing, dribbling, pace
+  const midCreativity = avgStat(attackGroups.mid, ({ player }) => {
+    return (stat(player, 'pas') + stat(player, 'dri') + stat(player, 'pac')) / 3;
+  });
+
+  // Weighted attack score (0–100 scale)
+  const attackScore = fwdShooting * 0.6 + midCreativity * 0.4;
+
+  // ── Defense strength (from defending team) ──
+  // Defenders: defensive stat with position-fit adjustment
+  const defRating = avgStat(defenseGroups.def, ({ player, slotPos }) => {
+    let d = stat(player, 'def');
+    const fit = positionFit(player, slotPos);
+    if (fit === 'out') d -= 5;
+    return d;
+  });
+
+  // Midfield defense
+  const midDefense = avgStat(defenseGroups.mid, ({ player }) => stat(player, 'def'));
+
+  // Goalkeeper
+  const gkRating = avgStat(defenseGroups.gk, ({ player }) => {
+    return (stat(player, 'diving') + stat(player, 'handling') + stat(player, 'reflexes')) / 3;
+  });
+
+  // Weighted defense score (0–100 scale)
+  const defenseScore = defRating * 0.40 + midDefense * 0.25 + gkRating * 0.35;
+
+  // ── Net advantage → expected goals ──
+  const advantage = attackScore - defenseScore;
+  // Base ~1.5 goals; scale advantage so ±40 diff → ±8 goals swing
+  const baseExpected = 1.5 + advantage * 0.18;
+
+  // ── Random match momentum swing (±0.8) ──
+  const momentum = (Math.random() - 0.5) * 1.6;
+  const expectedGoals = Math.max(0.15, baseExpected + momentum);
+
+  // ── Poisson-ish random goal generation ──
+  const goals = poissonRandom(expectedGoals);
+
+  return {
+    goals,
+    debug: {
+      fwdShooting: fwdShooting.toFixed(1),
+      midCreativity: midCreativity.toFixed(1),
+      attackScore: attackScore.toFixed(1),
+      defRating: defRating.toFixed(1),
+      midDefense: midDefense.toFixed(1),
+      gkRating: gkRating.toFixed(1),
+      defenseScore: defenseScore.toFixed(1),
+      advantage: advantage.toFixed(1),
+      momentum: momentum.toFixed(2),
+      expectedGoals: expectedGoals.toFixed(2),
+      fwdCount: attackGroups.fwd.length,
+      midCount: attackGroups.mid.length,
+      defCount: defenseGroups.def.length,
+    },
+  };
+}
+
+/** Generate a Poisson-distributed random integer. */
+function poissonRandom(lambda) {
+  let L = Math.exp(-lambda);
+  let k = 0;
+  let p = 1;
+  do {
+    k++;
+    p *= Math.random();
+  } while (p > L);
+  return k - 1;
+}
+
+/**
+ * Simulate a full match between two teams.
+ * Returns { userGoals, challGoals }
+ */
+function simulateMatch(userTeam, challTeam, formation) {
+  const userGroups = categoriseBySlot(userTeam, formation);
+  const challGroups = categoriseBySlot(challTeam, formation);
+
+  const userResult = calcGoalsForTeam(userGroups, challGroups);
+  const challResult = calcGoalsForTeam(challGroups, userGroups);
+
+  return {
+    userGoals: userResult.goals,
+    challGoals: challResult.goals,
+    userDebug: userResult.debug,
+    challDebug: challResult.debug,
+  };
+}
+
+// ────────────────────────────────────────────────────────────────
+// MATCH RESULT UI
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Generate random goal times sorted chronologically.
+ * Goals can occur in minutes 1–90 plus stoppage time (90+1 to 90+5).
+ */
+function generateGoalTimes(count) {
+  if (count === 0) return [];
+  const times = [];
+  for (let i = 0; i < count; i++) {
+    const r = Math.random();
+    if (r < 0.08) {
+      // ~8% chance of stoppage time goal
+      times.push(90 + Math.ceil(Math.random() * 5));
+    } else {
+      times.push(Math.ceil(Math.random() * 90));
+    }
+  }
+  return times.sort((a, b) => a - b);
+}
+
+function formatGoalTime(minute) {
+  return minute > 90 ? `90+${minute - 90}'` : `${minute}'`;
+}
+
+/**
+ * Pick a random goal scorer from a team, weighted by position.
+ * Forwards score ~60%, midfielders ~30%, defenders ~10%.
+ */
+function pickScorer(teamArr, formation) {
+  const slots = FORMATIONS[formation];
+  const candidates = [];
+  for (let i = 0; i < 11; i++) {
+    const player = teamArr[i];
+    if (!player) continue;
+    const group = posGroup(slots[i].pos);
+    const weight = group === 'FWD' ? 6 : group === 'MID' ? 3 : group === 'GK' ? 0 : 1;
+    for (let w = 0; w < weight; w++) candidates.push(player);
+  }
+  if (candidates.length === 0) return null;
+  return candidates[Math.floor(Math.random() * candidates.length)];
+}
+
+function buildGoalTimeline(userGoals, challGoals, userTeam, challTeam, formation) {
+  const userTimes = generateGoalTimes(userGoals);
+  const challTimes = generateGoalTimes(challGoals);
+  if (userGoals === 0 && challGoals === 0) {
+    return '<div class="timeline-empty">No goals scored</div>';
+  }
+  // Merge into a single timeline sorted by time
+  const events = [];
+  userTimes.forEach(t => {
+    const scorer = pickScorer(userTeam, formation);
+    events.push({ time: t, side: 'user', label: '⚽', scorer });
+  });
+  challTimes.forEach(t => {
+    const scorer = pickScorer(challTeam, formation);
+    events.push({ time: t, side: 'chall', label: '🎯', scorer });
+  });
+  events.sort((a, b) => a.time - b.time);
+
+  return events.map(e => {
+    const timeStr = formatGoalTime(e.time);
+    const name = e.scorer ? esc(shortName(e.scorer.name)) : '?';
+    if (e.side === 'user') {
+      return `<div class="timeline-row timeline-user"><span class="tl-icon">${e.label}</span><span class="tl-scorer">${name}</span><span class="tl-time">${timeStr}</span><span class="tl-spacer"></span></div>`;
+    }
+    return `<div class="timeline-row timeline-chall"><span class="tl-spacer"></span><span class="tl-time">${timeStr}</span><span class="tl-scorer">${name}</span><span class="tl-icon">${e.label}</span></div>`;
+  }).join('');
+}
+
+/** Show a "simulating" animation for 3 seconds, then reveal the result. */
+function showMatchLoadingThenResult(result) {
+  const teamPanel = document.querySelector('.team-panel');
+  teamPanel.innerHTML = `
+    <div class="match-simulating">
+      <div class="sim-ball">⚽</div>
+      <div class="sim-text">Simulating match…</div>
+      <div class="sim-bar"><div class="sim-bar-fill"></div></div>
+    </div>`;
+  setTimeout(() => renderMatchResult(result), 3000);
+}
+
+function renderMatchResult({ userGoals, challGoals, userDebug, challDebug }) {
+  const teamPanel = document.querySelector('.team-panel');
+  const userStats = calcTeamAvgStats(team);
+  const challStats = calcTeamAvgStats(challengerTeam);
+
+  let resultLabel, resultClass;
+  if (userGoals > challGoals) {
+    resultLabel = 'Victory!';
+    resultClass = 'result-win';
+  } else if (userGoals < challGoals) {
+    resultLabel = 'Defeat';
+    resultClass = 'result-loss';
+  } else {
+    resultLabel = 'Draw';
+    resultClass = 'result-draw';
+  }
+
+  teamPanel.innerHTML = `
+    <div class="match-result-screen">
+      <div class="result-banner ${resultClass}">
+        <div class="result-label">${resultLabel}</div>
+      </div>
+
+      <div class="result-scoreboard">
+        <div class="result-side">
+          <span class="result-team-icon">⚽</span>
+          <span class="result-team-label">Your Team</span>
+          <span class="result-ovr-badge">${userStats.ovr}</span>
+        </div>
+        <div class="result-score">
+          <span class="result-goals">${userGoals}</span>
+          <span class="result-dash">–</span>
+          <span class="result-goals">${challGoals}</span>
+        </div>
+        <div class="result-side">
+          <span class="result-team-icon">🎯</span>
+          <span class="result-team-label">Challenger</span>
+          <span class="result-ovr-badge">${challStats.ovr}</span>
+        </div>
+      </div>
+
+      <div class="result-timeline">
+        <div class="timeline-header">Goal Timeline</div>
+        ${buildGoalTimeline(userGoals, challGoals, team, challengerTeam, currentFormation)}
+      </div>
+
+      <div class="result-pitches">
+        <div class="match-pitch-col">
+          <div class="pitch-wrapper">
+            <div class="pitch match-pitch" id="resultUserPitch">
+              <div class="pitch-markings" aria-hidden="true">
+                <div class="halfway-line"></div><div class="center-circle"></div>
+                <div class="center-dot"></div>
+                <div class="penalty-area penalty-top"></div><div class="penalty-area penalty-bottom"></div>
+                <div class="goal-area goal-top"></div><div class="goal-area goal-bottom"></div>
+                <div class="corner corner-tl"></div><div class="corner corner-tr"></div>
+                <div class="corner corner-bl"></div><div class="corner corner-br"></div>
+              </div>
+              <div class="slots-container" id="resultUserSlots"></div>
+            </div>
+          </div>
+          ${buildStatsBarHTML(userStats)}
+        </div>
+        <div class="match-pitch-col">
+          <div class="pitch-wrapper">
+            <div class="pitch match-pitch" id="resultChallPitch">
+              <div class="pitch-markings" aria-hidden="true">
+                <div class="halfway-line"></div><div class="center-circle"></div>
+                <div class="center-dot"></div>
+                <div class="penalty-area penalty-top"></div><div class="penalty-area penalty-bottom"></div>
+                <div class="goal-area goal-top"></div><div class="goal-area goal-bottom"></div>
+                <div class="corner corner-tl"></div><div class="corner corner-tr"></div>
+                <div class="corner corner-bl"></div><div class="corner corner-br"></div>
+              </div>
+              <div class="slots-container" id="resultChallSlots"></div>
+            </div>
+          </div>
+          ${buildStatsBarHTML(challStats)}
+        </div>
+      </div>
+
+      <div class="match-actions">
+        <button class="btn-primary match-play-btn" id="continueBtn">▶️ Continue</button>
+        <button class="btn-secondary match-play-btn" id="backToStartBtn">🏠 Back to Start</button>
+      </div>
+
+      <div class="result-debug">
+        <details>
+          <summary>Match Calculation Details</summary>
+          <div class="debug-columns">
+            <div class="debug-col">
+              <h4>⚽ Your Team Attack</h4>
+              <div class="debug-row"><span>Forwards (${userDebug.fwdCount})</span><span>Shooting: ${userDebug.fwdShooting}</span></div>
+              <div class="debug-row"><span>Midfield (${userDebug.midCount})</span><span>Creativity: ${userDebug.midCreativity}</span></div>
+              <div class="debug-row highlight"><span>Attack Score</span><span>${userDebug.attackScore}</span></div>
+              <h4 style="margin-top:10px">🛡️ vs Challenger Defense</h4>
+              <div class="debug-row"><span>Defenders (${userDebug.defCount})</span><span>Def: ${userDebug.defRating}</span></div>
+              <div class="debug-row"><span>Midfield Def</span><span>${userDebug.midDefense}</span></div>
+              <div class="debug-row"><span>GK Rating</span><span>${userDebug.gkRating}</span></div>
+              <div class="debug-row highlight"><span>Defense Score</span><span>${userDebug.defenseScore}</span></div>
+              <h4 style="margin-top:10px">📊 Result</h4>
+              <div class="debug-row"><span>Advantage</span><span>${userDebug.advantage}</span></div>
+              <div class="debug-row"><span>Momentum (rng)</span><span>${userDebug.momentum}</span></div>
+              <div class="debug-row highlight"><span>Expected Goals</span><span>${userDebug.expectedGoals}</span></div>
+              <div class="debug-row highlight"><span>Actual Goals</span><span>${userGoals}</span></div>
+            </div>
+            <div class="debug-col">
+              <h4>🎯 Challenger Attack</h4>
+              <div class="debug-row"><span>Forwards (${challDebug.fwdCount})</span><span>Shooting: ${challDebug.fwdShooting}</span></div>
+              <div class="debug-row"><span>Midfield (${challDebug.midCount})</span><span>Creativity: ${challDebug.midCreativity}</span></div>
+              <div class="debug-row highlight"><span>Attack Score</span><span>${challDebug.attackScore}</span></div>
+              <h4 style="margin-top:10px">🛡️ vs Your Defense</h4>
+              <div class="debug-row"><span>Defenders (${challDebug.defCount})</span><span>Def: ${challDebug.defRating}</span></div>
+              <div class="debug-row"><span>Midfield Def</span><span>${challDebug.midDefense}</span></div>
+              <div class="debug-row"><span>GK Rating</span><span>${challDebug.gkRating}</span></div>
+              <div class="debug-row highlight"><span>Defense Score</span><span>${challDebug.defenseScore}</span></div>
+              <h4 style="margin-top:10px">📊 Result</h4>
+              <div class="debug-row"><span>Advantage</span><span>${challDebug.advantage}</span></div>
+              <div class="debug-row"><span>Momentum (rng)</span><span>${challDebug.momentum}</span></div>
+              <div class="debug-row highlight"><span>Expected Goals</span><span>${challDebug.expectedGoals}</span></div>
+              <div class="debug-row highlight"><span>Actual Goals</span><span>${challGoals}</span></div>
+            </div>
+          </div>
+        </details>
+      </div>
+    </div>`;
+
+  renderMatchPitch('resultUserSlots', team, currentFormation);
+  renderMatchPitch('resultChallSlots', challengerTeam, currentFormation);
+
+  document.getElementById('continueBtn').addEventListener('click', () => {
+    showToast('More packs coming soon!');
+  });
+  document.getElementById('backToStartBtn').addEventListener('click', () => {
+    location.reload();
+  });
 }
 
 function buildStatsBarHTML(stats) {
