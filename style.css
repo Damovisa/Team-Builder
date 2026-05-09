@@ -1469,3 +1469,121 @@ img { display: block; }
     border-top: 1px solid var(--border);
   }
 }
+
+/* ── Match Result Screen ── */
+.match-result-screen {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  width: 100%;
+}
+
+.result-banner {
+  text-align: center;
+  padding: 12px 40px;
+  border-radius: var(--radius);
+  width: 100%;
+  max-width: 500px;
+}
+.result-banner.result-win  { background: linear-gradient(135deg, #1a6e2e, #2ea84e); }
+.result-banner.result-loss { background: linear-gradient(135deg, #8b1a1a, #c44040); }
+.result-banner.result-draw { background: linear-gradient(135deg, #6e5a1a, #b89a30); }
+.result-label {
+  font-size: 1.8rem;
+  font-weight: 700;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #fff;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.4);
+}
+
+.result-scoreboard {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 28px;
+  padding: 16px 24px;
+  background: var(--bg-panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  width: 100%;
+  max-width: 500px;
+}
+.result-side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 80px;
+}
+.result-team-icon { font-size: 1.6rem; }
+.result-team-label {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.result-ovr-badge {
+  font-size: 0.75rem;
+  color: var(--gold);
+  font-weight: 600;
+  background: rgba(212, 175, 55, 0.1);
+  padding: 1px 8px;
+  border-radius: 4px;
+}
+.result-score {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.result-goals {
+  font-size: 3rem;
+  font-weight: 800;
+  color: var(--gold-light);
+  line-height: 1;
+}
+.result-dash {
+  font-size: 2rem;
+  color: var(--text-muted);
+  font-weight: 300;
+}
+
+.result-pitches {
+  display: flex;
+  gap: 16px;
+  width: 100%;
+  justify-content: center;
+}
+
+.match-result-screen .match-actions {
+  gap: 12px;
+}
+
+.btn-secondary {
+  background: var(--bg-card);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  padding: 10px 24px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 0.95rem;
+  transition: background 0.2s;
+}
+.btn-secondary:hover {
+  background: var(--bg-panel);
+  border-color: var(--gold-dark);
+}
+
+@media (max-width: 900px) {
+  .result-pitches {
+    flex-direction: column;
+  }
+  .result-scoreboard {
+    gap: 16px;
+  }
+  .result-goals {
+    font-size: 2.2rem;
+  }
+}

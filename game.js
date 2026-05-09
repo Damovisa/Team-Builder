@@ -651,7 +651,8 @@ function renderChallengerPhase() {
   renderMatchPitch('challengerMatchSlots', challengerTeam, currentFormation);
 
   document.getElementById('playGameBtn').addEventListener('click', () => {
-    showToast('Match simulation coming soon!');
+    const result = simulateMatch(team, challengerTeam, currentFormation);
+    renderMatchResult(result);
   });
 }
 
@@ -744,6 +745,222 @@ function calcTeamAvgStats(teamArr) {
     ovr: avg('ovr'), pac: avg('pac'), sho: avg('sho'),
     pas: avg('pas'), dri: avg('dri'), def: avg('def'), phy: avg('phy'),
   };
+}
+
+// ────────────────────────────────────────────────────────────────
+// MATCH SIMULATION
+// ────────────────────────────────────────────────────────────────
+
+/**
+ * Categorise team slots into positional groups based on formation slot position.
+ * Returns { gk: [...], def: [...], mid: [...], fwd: [...] }
+ * Each entry is { player, slotPos }.
+ */
+function categoriseBySlot(teamArr, formation) {
+  const groups = { gk: [], def: [], mid: [], fwd: [] };
+  const slots = FORMATIONS[formation];
+  for (let i = 0; i < 11; i++) {
+    const player = teamArr[i];
+    if (!player) continue;
+    const slotPos = slots[i].pos;
+    const group = posGroup(slotPos);
+    const key = group === 'GK' ? 'gk' : group === 'DEF' ? 'def' : group === 'FWD' ? 'fwd' : 'mid';
+    groups[key].push({ player, slotPos });
+  }
+  return groups;
+}
+
+/**
+ * Check whether a player is in their preferred position, an alternate, or out of position.
+ * Returns 'preferred' | 'alternate' | 'out'
+ */
+function positionFit(player, slotPos) {
+  if (player.position === slotPos) return 'preferred';
+  const alts = Array.isArray(player['alternative positions']) ? player['alternative positions'] : [];
+  if (alts.includes(slotPos)) return 'alternate';
+  return 'out';
+}
+
+function stat(player, key) { return parseInt(player[key]) || 0; }
+
+function avgStat(entries, fn) {
+  if (!entries.length) return 50;
+  return entries.reduce((sum, e) => sum + fn(e), 0) / entries.length;
+}
+
+/**
+ * Calculate how many goals a team scores.
+ * attackTeam attacks, defenseTeam defends.
+ */
+function calcGoalsForTeam(attackGroups, defenseGroups) {
+  // ── Attack strength (from attacking team) ──
+  // Forwards: shooting, with position-fit adjustment
+  const fwdShooting = avgStat(attackGroups.fwd, ({ player, slotPos }) => {
+    let sho = stat(player, 'sho');
+    const fit = positionFit(player, slotPos);
+    if (fit === 'preferred') sho += 3;
+    else if (fit === 'out') sho -= 5;
+    return sho;
+  });
+
+  // Midfielders: passing, dribbling, pace
+  const midCreativity = avgStat(attackGroups.mid, ({ player }) => {
+    return (stat(player, 'pas') + stat(player, 'dri') + stat(player, 'pac')) / 3;
+  });
+
+  // Weighted attack score (0–100 scale)
+  const attackScore = fwdShooting * 0.6 + midCreativity * 0.4;
+
+  // ── Defense strength (from defending team) ──
+  // Defenders: defensive stat with position-fit adjustment
+  const defRating = avgStat(defenseGroups.def, ({ player, slotPos }) => {
+    let d = stat(player, 'def');
+    const fit = positionFit(player, slotPos);
+    if (fit === 'out') d -= 5;
+    return d;
+  });
+
+  // Midfield defense
+  const midDefense = avgStat(defenseGroups.mid, ({ player }) => stat(player, 'def'));
+
+  // Goalkeeper
+  const gkRating = avgStat(defenseGroups.gk, ({ player }) => {
+    return (stat(player, 'diving') + stat(player, 'handling') + stat(player, 'reflexes')) / 3;
+  });
+
+  // Weighted defense score (0–100 scale)
+  const defenseScore = defRating * 0.40 + midDefense * 0.25 + gkRating * 0.35;
+
+  // ── Net advantage → expected goals ──
+  const advantage = attackScore - defenseScore;
+  // Base ~1.5 goals; scale advantage so ±40 diff → ±8 goals swing
+  const expectedGoals = Math.max(0.2, 1.5 + advantage * 0.18);
+
+  // ── Poisson-ish random goal generation ──
+  return poissonRandom(expectedGoals);
+}
+
+/** Generate a Poisson-distributed random integer. */
+function poissonRandom(lambda) {
+  let L = Math.exp(-lambda);
+  let k = 0;
+  let p = 1;
+  do {
+    k++;
+    p *= Math.random();
+  } while (p > L);
+  return k - 1;
+}
+
+/**
+ * Simulate a full match between two teams.
+ * Returns { userGoals, challGoals }
+ */
+function simulateMatch(userTeam, challTeam, formation) {
+  const userGroups = categoriseBySlot(userTeam, formation);
+  const challGroups = categoriseBySlot(challTeam, formation);
+
+  const userGoals = calcGoalsForTeam(userGroups, challGroups);
+  const challGoals = calcGoalsForTeam(challGroups, userGroups);
+
+  return { userGoals, challGoals };
+}
+
+// ────────────────────────────────────────────────────────────────
+// MATCH RESULT UI
+// ────────────────────────────────────────────────────────────────
+
+function renderMatchResult({ userGoals, challGoals }) {
+  const teamPanel = document.querySelector('.team-panel');
+  const userStats = calcTeamAvgStats(team);
+  const challStats = calcTeamAvgStats(challengerTeam);
+
+  let resultLabel, resultClass;
+  if (userGoals > challGoals) {
+    resultLabel = 'Victory!';
+    resultClass = 'result-win';
+  } else if (userGoals < challGoals) {
+    resultLabel = 'Defeat';
+    resultClass = 'result-loss';
+  } else {
+    resultLabel = 'Draw';
+    resultClass = 'result-draw';
+  }
+
+  teamPanel.innerHTML = `
+    <div class="match-result-screen">
+      <div class="result-banner ${resultClass}">
+        <div class="result-label">${resultLabel}</div>
+      </div>
+
+      <div class="result-scoreboard">
+        <div class="result-side">
+          <span class="result-team-icon">⚽</span>
+          <span class="result-team-label">Your Team</span>
+          <span class="result-ovr-badge">${userStats.ovr}</span>
+        </div>
+        <div class="result-score">
+          <span class="result-goals">${userGoals}</span>
+          <span class="result-dash">–</span>
+          <span class="result-goals">${challGoals}</span>
+        </div>
+        <div class="result-side">
+          <span class="result-team-icon">🎯</span>
+          <span class="result-team-label">Challenger</span>
+          <span class="result-ovr-badge">${challStats.ovr}</span>
+        </div>
+      </div>
+
+      <div class="result-pitches">
+        <div class="match-pitch-col">
+          <div class="pitch-wrapper">
+            <div class="pitch match-pitch" id="resultUserPitch">
+              <div class="pitch-markings" aria-hidden="true">
+                <div class="halfway-line"></div><div class="center-circle"></div>
+                <div class="center-dot"></div>
+                <div class="penalty-area penalty-top"></div><div class="penalty-area penalty-bottom"></div>
+                <div class="goal-area goal-top"></div><div class="goal-area goal-bottom"></div>
+                <div class="corner corner-tl"></div><div class="corner corner-tr"></div>
+                <div class="corner corner-bl"></div><div class="corner corner-br"></div>
+              </div>
+              <div class="slots-container" id="resultUserSlots"></div>
+            </div>
+          </div>
+          ${buildStatsBarHTML(userStats)}
+        </div>
+        <div class="match-pitch-col">
+          <div class="pitch-wrapper">
+            <div class="pitch match-pitch" id="resultChallPitch">
+              <div class="pitch-markings" aria-hidden="true">
+                <div class="halfway-line"></div><div class="center-circle"></div>
+                <div class="center-dot"></div>
+                <div class="penalty-area penalty-top"></div><div class="penalty-area penalty-bottom"></div>
+                <div class="goal-area goal-top"></div><div class="goal-area goal-bottom"></div>
+                <div class="corner corner-tl"></div><div class="corner corner-tr"></div>
+                <div class="corner corner-bl"></div><div class="corner corner-br"></div>
+              </div>
+              <div class="slots-container" id="resultChallSlots"></div>
+            </div>
+          </div>
+          ${buildStatsBarHTML(challStats)}
+        </div>
+      </div>
+
+      <div class="match-actions">
+        <button class="btn-primary match-play-btn" id="playAgainBtn">🔄 Play Again</button>
+        <button class="btn-secondary match-play-btn" id="backToStartBtn">🏠 Back to Start</button>
+      </div>
+    </div>`;
+
+  renderMatchPitch('resultUserSlots', team, currentFormation);
+  renderMatchPitch('resultChallSlots', challengerTeam, currentFormation);
+
+  document.getElementById('playAgainBtn').addEventListener('click', () => {
+    initChallenger();
+  });
+  document.getElementById('backToStartBtn').addEventListener('click', () => {
+    location.reload();
+  });
 }
 
 function buildStatsBarHTML(stats) {
